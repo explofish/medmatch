@@ -1,0 +1,20 @@
+name: Deploy Mock API to Railway
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'mock-api/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Railway
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: medmatch-mock-api
