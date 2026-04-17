@@ -5,6 +5,8 @@ import type { NextRequest } from 'next/server'
 const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
   'https://medmatch.de',
   'https://www.medmatch.de',
+  'https://medmatch-demo.vercel.app',
+  'https://www.medmatch-demo.vercel.app',
   'http://localhost:3000',
   'http://localhost:3001',
 ]
