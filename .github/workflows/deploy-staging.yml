@@ -2,7 +2,8 @@ name: Staging Deploy MedMatch
 
 on:
   push:
-    branches: [develop, staging]
+    branches: [master, develop, staging]
+  workflow_dispatch:
 
 jobs:
   deploy-staging:
@@ -23,8 +24,8 @@ jobs:
           working-directory: landing-page
           vercel-args: ''
       
-      - name: Deploy Backend to Railway (Staging)
-        uses: bervProject/railway-deploy@main
+      - name: Deploy Backend to Render (Staging)
+        uses: johnbeynon/render-deploy-action@v0.0.8
         with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
-          service: medmatch-api-staging
+          service-id: ${{ secrets.RENDER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
