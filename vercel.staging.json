@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "name": "medmatch-demo",
+  "builds": [
+    {
+      "src": "landing-page/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "landing-page/$1"
+    }
+  ],
+  "buildCommand": "cd landing-page && npm run build",
+  "outputDirectory": "landing-page/dist",
+  "env": {
+    "BACKEND_URL": "https://medmatch-api-staging.onrender.com",
+    "NEXT_PUBLIC_BACKEND_URL": "https://medmatch-api-staging.onrender.com",
+    "NEXT_PUBLIC_PLAUSIBLE_DOMAIN": "medmatch-demo.vercel.app"
+  }
+}

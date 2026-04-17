@@ -1,0 +1,23 @@
+{
+  "name": "medmatch-landing",
+  "version": 2,
+  "builds": [
+    {
+      "src": "landing-page/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://api.medmatch.de/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "landing-page/$1"
+    }
+  ],
+  "env": {
+    "BACKEND_URL": "https://api.medmatch.de"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "medmatch-landing",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_BACKEND_URL": "https://medmatch-api.vercel.app"
+  }
+}

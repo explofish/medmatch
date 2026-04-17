@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: medmatch-api-staging
+    runtime: node
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: staging
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        value: https://medmatch-api-staging.onrender.com
+      - key: CORS_ORIGINS
+        value: https://medmatch-demo.vercel.app,https://medmatch-demo.vercel.app
+      - key: DATABASE_URL
+        fromDatabase:
+          name: medmatch-staging-db
+          property: connectionString
+      - key: RESEND_API_KEY
+        sync: false # Set manually in Render dashboard
+
+databases:
+  - name: medmatch-staging-db
+    databaseName: medmatch_staging
+    user: medmatch_staging_user
