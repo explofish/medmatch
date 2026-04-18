@@ -1,0 +1,163 @@
+name: Deploy Mock API to Cloudflare Workers
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'mock-api/**'
+      - '.github/workflows/deploy-cloudflare.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Wrangler
+        run: npm install -g wrangler
+      
+      - name: Create Worker Script
+        run: |
+          mkdir -p cf-deploy
+          cat > cf-deploy/index.js << 'EOF'
+          // Cloudflare Worker - MedMatch Mock API
+          
+          // In-memory storage (resets on each deployment)
+          const signups = [];
+          
+          export default {
+            async fetch(request, env) {
+              const url = new URL(request.url);
+              const corsHeaders = {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type',
+              };
+              
+              // Handle CORS preflight
+              if (request.method === 'OPTIONS') {
+                return new Response(null, { headers: corsHeaders });
+              }
+              
+              // Health check
+              if (url.pathname === '/api/health') {
+                return new Response(
+                  JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }),
+                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+              
+              // Register endpoint
+              if (url.pathname === '/api/auth/register' && request.method === 'POST') {
+                try {
+                  const body = await request.json();
+                  const { email, firstName, lastName, yearOfGraduation, specialization, state } = body;
+                  
+                  if (!email || !firstName || !lastName) {
+                    return new Response(
+                      JSON.stringify({ error: 'Missing required fields', required: ['email', 'firstName', 'lastName'] }),
+                      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                    );
+                  }
+                  
+                  // Check for duplicate
+                  if (signups.find(s => s.email === email)) {
+                    return new Response(
+                      JSON.stringify({ error: 'Email already registered' }),
+                      { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                    );
+                  }
+                  
+                  const signup = {
+                    id: Date.now().toString(),
+                    email,
+                    firstName,
+                    lastName,
+                    yearOfGraduation: yearOfGraduation || null,
+                    specialization: specialization || null,
+                    state: state || null,
+                    createdAt: new Date().toISOString()
+                  };
+                  
+                  signups.push(signup);
+                  
+                  return new Response(
+                    JSON.stringify({
+                      success: true,
+                      message: 'Successfully joined the waitlist!',
+                      data: { id: signup.id, email: signup.email, firstName: signup.firstName }
+                    }),
+                    { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  );
+                } catch (e) {
+                  return new Response(
+                    JSON.stringify({ error: 'Invalid request' }),
+                    { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  );
+                }
+              }
+              
+              // Get all signups (admin)
+              if (url.pathname === '/api/signups') {
+                return new Response(
+                  JSON.stringify({ count: signups.length, signups }),
+                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+              
+              // 404 for unmatched routes
+              return new Response(
+                JSON.stringify({ error: 'Not found' }),
+                { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          };
+          EOF
+          
+          cat > cf-deploy/wrangler.toml << 'EOF'
+          name = "medmatch-mock-api"
+          main = "index.js"
+          compatibility_date = "2024-01-01"
+          
+          [vars]
+          ENVIRONMENT = "staging"
+          EOF
+      
+      - name: Deploy to Cloudflare Workers
+        if: secrets.CLOUDFLARE_API_TOKEN != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          cd cf-deploy
+          wrangler deploy
+      
+      - name: Upload deployment artifact
+        if: secrets.CLOUDFLARE_API_TOKEN == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-worker-deployment
+          path: cf-deploy/
+          retention-days: 30
+      
+      - name: Create deployment instructions
+        if: secrets.CLOUDFLARE_API_TOKEN == ''
+        run: |
+          echo "## Cloudflare Workers Deployment Instructions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Deploy Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download the 'cloudflare-worker-deployment' artifact" >> $GITHUB_STEP_SUMMARY
+          echo "2. Go to https://dash.cloudflare.com/ → Workers & Pages" >> $GITHUB_STEP_SUMMARY
+          echo "3. Click 'Create Service'" >> $GITHUB_STEP_SUMMARY
+          echo "4. Upload the index.js file" >> $GITHUB_STEP_SUMMARY
+          echo "5. Deploy - API will be live at your-worker-name.your-subdomain.workers.dev" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Or provide CLOUDFLARE_API_TOKEN for automated deploy:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to https://dash.cloudflare.com/profile/api-tokens" >> $GITHUB_STEP_SUMMARY
+          echo "2. Create token with 'Cloudflare Workers' edit permission" >> $GITHUB_STEP_SUMMARY
+          echo "3. Add to GitHub secrets as CLOUDFLARE_API_TOKEN" >> $GITHUB_STEP_SUMMARY
