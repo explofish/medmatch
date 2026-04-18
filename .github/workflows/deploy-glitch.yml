@@ -55,8 +55,17 @@ jobs:
           This API is deployed on Glitch for free staging/demo purposes.
           EOF
       
+      - name: Check for Glitch secrets
+        id: check_secrets
+        run: |
+          if [ -n "${{ secrets.GLITCH_PROJECT_ID }}" ] && [ -n "${{ secrets.GLITCH_TOKEN }}" ]; then
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Deploy to Glitch via Git
-        if: secrets.GLITCH_PROJECT_ID != ''
+        if: steps.check_secrets.outputs.has_secrets == 'true'
         env:
           GLITCH_PROJECT_ID: ${{ secrets.GLITCH_PROJECT_ID }}
           GLITCH_TOKEN: ${{ secrets.GLITCH_TOKEN }}
@@ -68,7 +77,7 @@ jobs:
           git push --force "https://${GLITCH_TOKEN}@api.glitch.com/git/${GLITCH_PROJECT_ID}" main
       
       - name: Upload deployment artifact
-        if: secrets.GLITCH_PROJECT_ID == ''
+        if: steps.check_secrets.outputs.has_secrets == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: glitch-deployment-package
@@ -76,7 +85,7 @@ jobs:
           retention-days: 30
       
       - name: Create deployment instructions
-        if: secrets.GLITCH_PROJECT_ID == ''
+        if: steps.check_secrets.outputs.has_secrets == 'false'
         run: |
           echo "## Glitch Deployment Instructions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
