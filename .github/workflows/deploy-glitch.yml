@@ -1,0 +1,99 @@
+name: Deploy Mock API to Glitch
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'mock-api/**'
+      - '.github/workflows/deploy-glitch.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup deployment files
+        run: |
+          mkdir -p glitch-deploy
+          cp mock-api/server.js glitch-deploy/
+          cp mock-api/package.json glitch-deploy/
+          # Create Glitch-compatible package.json
+          cat > glitch-deploy/package.json << 'EOF'
+          {
+            "name": "medmatch-mock-api",
+            "version": "1.0.0",
+            "description": "Mock API for MedMatch - deployed on Glitch",
+            "main": "server.js",
+            "scripts": {
+              "start": "node server.js"
+            },
+            "dependencies": {
+              "express": "^4.18.2",
+              "cors": "^2.8.5"
+            },
+            "engines": {
+              "node": "18.x"
+            }
+          }
+          EOF
+          # Create a README for Glitch
+          cat > glitch-deploy/README.md << 'EOF'
+          # MedMatch Mock API
+
+          Simple mock API for MedMatch staging demo.
+
+          ## Endpoints
+
+          - `GET /api/health` - Health check
+          - `POST /api/auth/register` - Register for waitlist
+          - `GET /api/signups` - View all signups (admin)
+
+          ## Deployment
+
+          This API is deployed on Glitch for free staging/demo purposes.
+          EOF
+      
+      - name: Deploy to Glitch via Git
+        if: secrets.GLITCH_PROJECT_ID != ''
+        env:
+          GLITCH_PROJECT_ID: ${{ secrets.GLITCH_PROJECT_ID }}
+          GLITCH_TOKEN: ${{ secrets.GLITCH_TOKEN }}
+        run: |
+          cd glitch-deploy
+          git init
+          git add .
+          git commit -m "Deploy from GitHub Actions"
+          git push --force "https://${GLITCH_TOKEN}@api.glitch.com/git/${GLITCH_PROJECT_ID}" main
+      
+      - name: Upload deployment artifact
+        if: secrets.GLITCH_PROJECT_ID == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: glitch-deployment-package
+          path: glitch-deploy/
+          retention-days: 30
+      
+      - name: Create deployment instructions
+        if: secrets.GLITCH_PROJECT_ID == ''
+        run: |
+          echo "## Glitch Deployment Instructions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Deploy Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download the 'glitch-deployment-package' artifact from this workflow run" >> $GITHUB_STEP_SUMMARY
+          echo "2. Go to https://glitch.com/" >> $GITHUB_STEP_SUMMARY
+          echo "3. Click 'New Project' → 'hello-express'" >> $GITHUB_STEP_SUMMARY
+          echo "4. In Glitch editor, click 'Tools' → 'Import / Export'" >> $GITHUB_STEP_SUMMARY
+          echo "5. Upload the deployment package files" >> $GITHUB_STEP_SUMMARY
+          echo "6. The API will be live at: https://your-project-name.glitch.me" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### API Endpoints:" >> $GITHUB_STEP_SUMMARY
+          echo "- Health: /api/health" >> $GITHUB_STEP_SUMMARY
+          echo "- Register: POST /api/auth/register" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Alternative: Remix from GitHub" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to https://glitch.com/" >> $GITHUB_STEP_SUMMARY
+          echo "2. Click 'New Project' → 'Import from GitHub'" >> $GITHUB_STEP_SUMMARY
+          echo "3. Enter: explofish/medmatch" >> $GITHUB_STEP_SUMMARY
+          echo "4. Set project path: mock-api" >> $GITHUB_STEP_SUMMARY
