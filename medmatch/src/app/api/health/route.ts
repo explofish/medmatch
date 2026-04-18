@@ -9,7 +9,12 @@ let prisma: any = null
 function getPrisma() {
   if (!prisma && process.env.DATABASE_URL) {
     const { PrismaClient } = require('@prisma/client')
-    prisma = new PrismaClient()
+    const { PrismaPg } = require('@prisma/adapter-pg')
+    const { Pool } = require('pg')
+    
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+    const adapter = new PrismaPg(pool)
+    prisma = new PrismaClient({ adapter })
   }
   return prisma
 }

@@ -11,7 +11,12 @@ let prisma: any = null
 function getPrisma() {
   if (!prisma) {
     const { PrismaClient } = require('@prisma/client')
-    prisma = new PrismaClient()
+    const { PrismaPg } = require('@prisma/adapter-pg')
+    const { Pool } = require('pg')
+    
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+    const adapter = new PrismaPg(pool)
+    prisma = new PrismaClient({ adapter })
   }
   return prisma
 }
@@ -86,7 +91,7 @@ export async function POST(request: NextRequest) {
     sendEmail(email, 'welcome', {
       firstName: firstName || 'Neuer Nutzer',
       email: email,
-    }).catch(err => console.error('Welcome email failed:', err))
+    }).catch((err: Error) => console.error('Welcome email failed:', err))
 
     return NextResponse.json({
       success: true,
