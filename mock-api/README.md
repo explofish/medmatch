@@ -1,37 +1,29 @@
-# MedMatch Mock API
+# MedMatch API
 
-Simple Express.js mock API for MedMatch staging/demo purposes. This API runs without a database (in-memory storage) and is perfect for quick deployment to validate the frontend signup flow.
+Express.js API with **SQLite persistence** for MedMatch staging/production. Data persists across container restarts via persistent filesystem storage.
 
 ## Features
 
-- ✅ Health check endpoint
+- ✅ Health check endpoint (`/api/health`)
 - ✅ Signup/registration endpoint (`/api/auth/register`)
-- ✅ CORS configured for GitHub Pages
-- ✅ In-memory storage (no database needed)
-- ✅ View all signups endpoint (admin)
+- ✅ CORS configured for all origins (production-ready)
+- ✅ **SQLite database** - Data persists across restarts
+- ✅ View all signups endpoint (`/api/signups`)
+- ✅ Signup count endpoint (`/api/signups/count`)
 
 ## Quick Deploy Options
 
-### Option 1: Glitch (Recommended - Free, No Account Setup Required)
+### Option 1: Glitch (Recommended for Quick Deploy)
 
-[![Remix on Glitch](https://cdn.glitch.com/2703baf2-b643-4da7-ab91-7ee2c2a5be13%2Fremix-button-v2.svg)](https://glitch.com/edit/#!/remix/hello-express)
+**See detailed guide:** [GLITCH_DEPLOY.md](./GLITCH_DEPLOY.md)
 
-**Manual steps:**
-1. Go to [Glitch](https://glitch.com/)
-2. Click **New Project** → **hello-express**
-3. Delete the default files
-4. Upload `server.js` and `package.json` from this folder
-5. The API will be live instantly at `https://your-project-name.glitch.me`
+Quick start:
+1. Go to [glitch.com](https://glitch.com)
+2. New Project → **hello-express**
+3. Upload `server.js` and `package.json`
+4. API live at `https://your-project.glitch.me`
 
-### Option 2: Replit
-
-1. Go to [Replit](https://replit.com/)
-2. Create new Repl → Node.js
-3. Copy `server.js` and `package.json` contents
-4. Click Run
-5. API will be live at your Replit URL
-
-### Option 3: Render (Free Tier)
+### Option 2: Render (Free Tier)
 
 1. Go to [Render](https://render.com/)
 2. Create account with GitHub
@@ -40,13 +32,21 @@ Simple Express.js mock API for MedMatch staging/demo purposes. This API runs wit
 5. Build command: `npm install`
 6. Start command: `npm start`
 
+### Option 3: Railway
+
+1. Go to [Railway](https://railway.app/)
+2. New Project → Deploy from GitHub repo
+3. Select this repository
+4. Set root directory: `mock-api`
+5. Deploy
+
 ### Option 4: Local Testing
 
 ```bash
 cd mock-api
 npm install
 npm start
-# API runs on http://localhost:3001
+# API runs on http://localhost:3000
 ```
 
 ## API Endpoints
@@ -59,7 +59,8 @@ Response:
 ```json
 {
   "status": "ok",
-  "timestamp": "2024-01-15T10:30:00.000Z"
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "service": "medmatch-api"
 }
 ```
 
@@ -78,31 +79,62 @@ Content-Type: application/json
 }
 ```
 
+Response:
+```json
+{
+  "success": true,
+  "message": "Successfully joined the waitlist!",
+  "data": {
+    "id": "1",
+    "email": "user@example.com",
+    "firstName": "John"
+  }
+}
+```
+
 ### View All Signups (Admin)
 ```
 GET /api/signups
 ```
 
+### Count Signups
+```
+GET /api/signups/count
+```
+
 ## CORS Configuration
 
-The API is configured to accept requests from:
-- `https://explofish.github.io` (production landing page)
-- `http://localhost:3000` (local development)
-- `http://localhost:3001` (local development)
+The API is configured to accept requests from **all origins** (`*`) for maximum compatibility with static hosting (GitHub Pages, Vercel, Netlify).
 
-## Environment Variables
+## Data Persistence
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | 3001 |
-| `NODE_ENV` | Environment | production |
-
-## Limitations
-
-- Data is stored in memory (lost on server restart)
-- Not suitable for production use
-- Perfect for demos and staging
+- SQLite database stored in `.data/medmatch.db`
+- On Glitch: Filesystem is persistent across container restarts
+- On Render/Railway: Use attached disk or migrate to PostgreSQL
+- Local: Database file persists in project directory
 
 ## Frontend Integration
 
-The landing page at `https://explofish.github.io/medmatch/` is configured to send signup requests to this API. Update the `API_BASE_URL` in the frontend to match your deployed API URL.
+Update `landing-page/components/SignupCTA.tsx`:
+
+```typescript
+const API_BASE_URL = 'https://your-project.glitch.me' // Or your deployed URL
+```
+
+The signup form will POST to `${API_BASE_URL}/api/auth/register`.
+
+## Migration to Production Database
+
+When ready to migrate from SQLite to PostgreSQL:
+
+1. Export data: `GET /api/signups` → Save JSON
+2. Set up PostgreSQL database
+3. Update `server.js` to use `pg` instead of `sqlite3`
+4. Import data to new database
+
+## Files
+
+- `server.js` - Express API with SQLite
+- `package.json` - Dependencies
+- `GLITCH_DEPLOY.md` - Detailed Glitch deployment guide
+- `.data/medmatch.db` - SQLite database (auto-created)
