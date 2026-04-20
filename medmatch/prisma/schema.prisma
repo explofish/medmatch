@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model Account {
@@ -190,4 +190,99 @@ enum ApplicationStatus {
   REJECTED
   ACCEPTED
   WITHDRAWN
+}
+
+// Monitoring and Logging Models
+
+model RequestLog {
+  id          String   @id @default(cuid())
+  method      String
+  path        String
+  query       String?
+  statusCode  Int      @map("status_code")
+  responseTimeMs Int    @map("response_time_ms")
+  userAgent   String?  @map("user_agent")
+  referrer    String?
+  ip          String?
+  requestId   String   @map("request_id")
+  userId      String?  @map("user_id")
+  errorId     String?  @map("error_id")
+  timestamp   DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([path])
+  @@index([statusCode])
+  @@index([requestId])
+  @@map("request_logs")
+}
+
+model ErrorLog {
+  id          String   @id @default(cuid())
+  requestId   String?  @map("request_id")
+  message     String
+  stack       String?
+  code        String?
+  path        String?
+  method      String?
+  userId      String?  @map("user_id")
+  context     String?  // JSON string with additional context
+  severity    ErrorSeverity @default(ERROR)
+  resolvedAt  DateTime? @map("resolved_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([severity])
+  @@index([resolvedAt])
+  @@map("error_logs")
+}
+
+enum ErrorSeverity {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+model ApiMetrics {
+  id          String   @id @default(cuid())
+  date        DateTime @default(now())
+  hour        Int      @default(0)
+  
+  // Request counts
+  totalRequests   Int @default(0) @map("total_requests")
+  successfulRequests Int @default(0) @map("successful_requests")
+  errorRequests   Int @default(0) @map("error_requests")
+  
+  // Response times (in ms)
+  totalResponseTimeMs Int @default(0) @map("total_response_time_ms")
+  avgResponseTimeMs   Int @default(0) @map("avg_response_time_ms")
+  maxResponseTimeMs   Int @default(0) @map("max_response_time_ms")
+  
+  // Error breakdown (stored as JSON string)
+  errorTypes      String? @map("error_types") // {"500": 5, "404": 2, ...}
+  
+  // Endpoint stats (stored as JSON string)
+  endpointStats   String? @map("endpoint_stats") // {"/api/auth/register": 10, ...}
+  
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([date, hour])
+  @@index([date])
+  @@map("api_metrics")
+}
+
+model HealthCheckLog {
+  id          String   @id @default(cuid())
+  type        String   // 'basic' or 'deep'
+  status      String   // 'healthy' or 'unhealthy'
+  responseTimeMs Int  @map("response_time_ms")
+  details     String?  // JSON string with check details
+  error       String?
+  timestamp   DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([type])
+  @@index([status])
+  @@map("health_check_logs")
 }

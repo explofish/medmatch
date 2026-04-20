@@ -4,6 +4,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { Pool } = require('pg');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,6 +34,20 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Swagger API Documentation
+const swaggerDocument = YAML.load(path.join(__dirname, 'openapi.yaml'));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'MedMatch API Documentation',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    deepLinking: true
+  }
+}));
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/graduates', require('./routes/graduates'));
@@ -41,6 +58,13 @@ app.use('/api/matches', require('./routes/matches'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/specializations', require('./routes/specializations'));
 app.use('/api/email', require('./email-system/routes'));
+app.use('/api/admin', require('./routes/admin'));
+
+// Admin Dashboard - serve static HTML
+app.use('/admin', express.static(path.join(__dirname, 'public/admin.html')));
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/admin.html'));
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

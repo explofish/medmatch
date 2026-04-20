@@ -1,0 +1,48 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'job-platform/backend/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'job-platform/backend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: job-platform/backend
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: job-platform/backend/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm test -- --forceExit
+
+    - name: Run tests with coverage
+      run: npm test -- --coverage --forceExit
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      if: matrix.node-version == '18.x'
+      with:
+        name: coverage-report
+        path: job-platform/backend/coverage/

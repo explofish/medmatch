@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { sendEmail } from '@/lib/email'
+import { withLogging } from '@/lib/api-route'
 
 // Dynamic route - don't cache
 export const dynamic = 'force-dynamic'
@@ -11,17 +12,12 @@ let prisma: any = null
 function getPrisma() {
   if (!prisma) {
     const { PrismaClient } = require('@prisma/client')
-    const { PrismaPg } = require('@prisma/adapter-pg')
-    const { Pool } = require('pg')
-    
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-    const adapter = new PrismaPg(pool)
-    prisma = new PrismaClient({ adapter })
+    prisma = new PrismaClient()
   }
   return prisma
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withLogging(async (request, { requestId, logError }) => {
   try {
     const body = await request.json()
     const { email, password, firstName, lastName, userType = 'GRADUATE' } = body
@@ -30,14 +26,20 @@ export async function POST(request: NextRequest) {
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: { 'X-Request-Id': requestId }
+        }
       )
     }
 
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'Password must be at least 6 characters' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: { 'X-Request-Id': requestId }
+        }
       )
     }
 
@@ -51,7 +53,10 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { error: 'Email already registered' },
-        { status: 409 }
+        { 
+          status: 409,
+          headers: { 'X-Request-Id': requestId }
+        }
       )
     }
 
@@ -91,7 +96,9 @@ export async function POST(request: NextRequest) {
     sendEmail(email, 'welcome', {
       firstName: firstName || 'Neuer Nutzer',
       email: email,
-    }).catch((err: Error) => console.error('Welcome email failed:', err))
+    }).catch((err: Error) => {
+      logError(err, { context: 'welcome_email' }).catch(() => {})
+    })
 
     return NextResponse.json({
       success: true,
@@ -100,13 +107,23 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
       }
-    }, { status: 201 })
+    }, { 
+      status: 201,
+      headers: { 'X-Request-Id': requestId }
+    })
 
   } catch (error) {
-    console.error('Registration error:', error)
+    // Log the error using the provided helper
+    await logError(error instanceof Error ? error : new Error('Registration error'), {
+      context: 'user_registration',
+    })
+    
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: { 'X-Request-Id': requestId }
+      }
     )
   }
-}
+})

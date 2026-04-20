@@ -33,7 +33,8 @@ const generateToken = (user) => {
  *   "password": "string (required, min 8 chars)",
  *   "graduationYear": "number",
  *   "specialty": "string",
- *   "location": "string"
+ *   "location": "string",
+ *   "source": "string (optional: landing_page, organic, referral, direct)"
  * }
  */
 router.post('/signup', [
@@ -58,6 +59,11 @@ router.post('/signup', [
     .trim()
     .isLength({ min: 1, max: 200 })
     .withMessage('Location must be between 1 and 200 characters'),
+  body('source')
+    .optional()
+    .trim()
+    .isIn(['landing_page', 'organic', 'referral', 'direct'])
+    .withMessage('Source must be one of: landing_page, organic, referral, direct'),
 ], async (req, res) => {
   try {
     // Validate request
@@ -70,7 +76,7 @@ router.post('/signup', [
       });
     }
 
-    const { email, password, graduationYear, specialty, location } = req.body;
+    const { email, password, graduationYear, specialty, location, source } = req.body;
     const db = req.app.locals.db;
 
     // Check if user already exists
@@ -92,11 +98,12 @@ router.post('/signup', [
 
     // Create user with 'graduate' type (for candidates from landing page)
     const userId = uuidv4();
+    const signupSource = source || 'organic';
     const userResult = await db.query(
-      `INSERT INTO users (id, email, password_hash, user_type, email_verified, is_active) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING id, email, user_type, email_verified, created_at`,
-      [userId, email, passwordHash, 'graduate', false, true]
+      `INSERT INTO users (id, email, password_hash, user_type, email_verified, is_active, signup_source) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       RETURNING id, email, user_type, email_verified, created_at, signup_source`,
+      [userId, email, passwordHash, 'graduate', false, true, signupSource]
     );
 
     const user = userResult.rows[0];
