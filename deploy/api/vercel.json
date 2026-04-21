@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "name": "medmatch-api",
+  "builds": [
+    {
+      "src": "server-memory.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "server-memory.js"
+    }
+  ]
+}
