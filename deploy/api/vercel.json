@@ -1,16 +1,18 @@
 {
   "version": 2,
-  "name": "medmatch-api",
   "builds": [
     {
-      "src": "server-memory.js",
+      "src": "server-gist.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "server-memory.js"
+      "dest": "server-gist.js"
     }
-  ]
+  ],
+  "env": {
+    "GIST_ID": "c1c9108852893c287ac68bc4ae9e40e6"
+  }
 }

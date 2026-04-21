@@ -1,0 +1,42 @@
+name: Deploy MedMatch API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/api/**'
+  workflow_dispatch:
+
+env:
+  GIST_ID: c1c9108852893c287ac68bc4ae9e40e6
+
+jobs:
+  deploy-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Render
+        if: ${{ secrets.RENDER_API_KEY != '' }}
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+      
+      - name: Deploy to Railway
+        if: ${{ secrets.RAILWAY_TOKEN != '' }}
+        uses: railway/cli@v2
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          cd deploy/api
+          railway up
+      
+      - name: Deploy to Fly.io
+        if: ${{ secrets.FLY_API_TOKEN != '' }}
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: |
+          cd deploy/api
+          flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
