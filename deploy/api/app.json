@@ -1,0 +1,18 @@
+{
+  "name": "medmatch-api",
+  "description": "MedMatch API with GitHub Gist persistence",
+  "repository": "https://github.com/explofish/medmatch",
+  "logo": "",
+  "keywords": ["node", "express", "api"],
+  "image": "heroku/nodejs",
+  "env": {
+    "GIST_ID": {
+      "description": "GitHub Gist ID for data storage",
+      "value": "c1c9108852893c287ac68bc4ae9e40e6"
+    },
+    "GH_TOKEN": {
+      "description": "GitHub token for Gist access",
+      "required": true
+    }
+  }
+}
