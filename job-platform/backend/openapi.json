@@ -1,0 +1,869 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "MedMatch Job Platform API",
+    "description": "API for job matching platform connecting medical professionals with healthcare employers. Includes application tracking, dashboard analytics, and notification system.",
+    "version": "1.1.0",
+    "contact": {
+      "name": "MedMatch API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Check API health status",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" },
+                    "timestamp": { "type": "string", "format": "date-time" },
+                    "service": { "type": "string", "example": "medmatch-job-platform" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications": {
+      "get": {
+        "summary": "List applications",
+        "description": "Get all applications with filters and pagination",
+        "tags": ["Applications"],
+        "parameters": [
+          {
+            "name": "candidateId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "Filter by candidate ID"
+          },
+          {
+            "name": "jobId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "Filter by job ID"
+          },
+          {
+            "name": "employerId",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "Filter by employer ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["pending", "reviewed", "accepted", "rejected"] },
+            "description": "Filter by application status"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 },
+            "description": "Page number"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 },
+            "description": "Items per page (max 100)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of applications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Application" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Submit application",
+        "description": "Submit a new job application",
+        "tags": ["Applications"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["candidateId", "jobId"],
+                "properties": {
+                  "candidateId": { "type": "integer", "description": "ID of the candidate" },
+                  "jobId": { "type": "integer", "description": "ID of the job" },
+                  "coverLetter": { "type": "string", "description": "Optional cover letter" },
+                  "cvUrl": { "type": "string", "description": "URL to candidate CV" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Application created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "data": { "$ref": "#/components/schemas/Application" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation failed" },
+          "404": { "description": "Candidate or job not found" },
+          "409": { "description": "Already applied to this job" }
+        }
+      }
+    },
+    "/applications/{id}": {
+      "get": {
+        "summary": "Get application details",
+        "description": "Get details of a specific application",
+        "tags": ["Applications"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Application ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Application details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/ApplicationDetail" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Application not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update application status",
+        "description": "Update the status of an application (employer only)",
+        "tags": ["Applications"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Application ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { 
+                    "type": "string", 
+                    "enum": ["pending", "reviewed", "accepted", "rejected"],
+                    "description": "New application status"
+                  },
+                  "notes": { "type": "string", "description": "Employer notes" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Application updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "data": { "$ref": "#/components/schemas/Application" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid status" },
+          "404": { "description": "Application not found" }
+        }
+      },
+      "delete": {
+        "summary": "Withdraw application",
+        "description": "Soft delete an application (candidate can withdraw)",
+        "tags": ["Applications"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Application ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Application withdrawn successfully"
+          },
+          "404": { "description": "Application not found" }
+        }
+      }
+    },
+    "/candidates/{id}/applications": {
+      "get": {
+        "summary": "Get candidate applications",
+        "description": "Get all applications for a specific candidate",
+        "tags": ["Candidates", "Applications"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Candidate ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of candidate applications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "candidateId": { "type": "integer" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Application" }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                        "byStatus": {
+                          "type": "object",
+                          "properties": {
+                            "pending": { "type": "integer" },
+                            "reviewed": { "type": "integer" },
+                            "accepted": { "type": "integer" },
+                            "rejected": { "type": "integer" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Candidate not found" }
+        }
+      }
+    },
+    "/jobs/{id}/applications": {
+      "get": {
+        "summary": "Get job applications",
+        "description": "Get all applications for a specific job (employer only)",
+        "tags": ["Jobs", "Applications"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Job ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of job applications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": { "type": "integer" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Application" }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                        "byStatus": {
+                          "type": "object",
+                          "properties": {
+                            "pending": { "type": "integer" },
+                            "reviewed": { "type": "integer" },
+                            "accepted": { "type": "integer" },
+                            "rejected": { "type": "integer" }
+                          }
+                        },
+                        "averageMatchScore": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Job not found" }
+        }
+      }
+    },
+    "/dashboard/employer/{id}": {
+      "get": {
+        "summary": "Employer dashboard",
+        "description": "Get dashboard statistics for an employer",
+        "tags": ["Dashboard"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Employer ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Employer dashboard stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "employerId": { "type": "integer" },
+                    "employerName": { "type": "string" },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "totalActiveJobs": { "type": "integer" },
+                        "totalApplications": { "type": "integer" }
+                      }
+                    },
+                    "applications": {
+                      "type": "object",
+                      "properties": {
+                        "byStatus": {
+                          "type": "object",
+                          "properties": {
+                            "pending": { "type": "integer" },
+                            "reviewed": { "type": "integer" },
+                            "accepted": { "type": "integer" },
+                            "rejected": { "type": "integer" }
+                          }
+                        },
+                        "matchScoreStats": {
+                          "type": "object",
+                          "properties": {
+                            "average": { "type": "integer" },
+                            "highest": { "type": "integer" },
+                            "lowest": { "type": "integer" }
+                          }
+                        },
+                        "weeklyTrend": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": { "type": "string" },
+                              "count": { "type": "integer" }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "recentActivity": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "status": { "type": "string" },
+                          "appliedAt": { "type": "string" },
+                          "matchScore": { "type": "integer" },
+                          "candidateName": { "type": "string" },
+                          "candidateSpecialty": { "type": "string" },
+                          "jobTitle": { "type": "string" }
+                        }
+                      }
+                    },
+                    "jobs": {
+                      "type": "object",
+                      "properties": {
+                        "topPerforming": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "integer" },
+                              "title": { "type": "string" },
+                              "applicationCount": { "type": "integer" },
+                              "avgMatchScore": { "type": "integer" }
+                            }
+                          }
+                        },
+                        "needingAttention": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "integer" },
+                              "title": { "type": "string" },
+                              "postedAt": { "type": "string" },
+                              "totalApplications": { "type": "integer" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Employer not found" }
+        }
+      }
+    },
+    "/dashboard/candidate/{id}": {
+      "get": {
+        "summary": "Candidate dashboard",
+        "description": "Get dashboard statistics for a candidate",
+        "tags": ["Dashboard"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Candidate ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Candidate dashboard stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "candidateId": { "type": "integer" },
+                    "candidateName": { "type": "string" },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "totalApplications": { "type": "integer" }
+                      }
+                    },
+                    "applications": {
+                      "type": "object",
+                      "properties": {
+                        "byStatus": {
+                          "type": "object",
+                          "properties": {
+                            "pending": { "type": "integer" },
+                            "reviewed": { "type": "integer" },
+                            "accepted": { "type": "integer" },
+                            "rejected": { "type": "integer" }
+                          }
+                        },
+                        "recent": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Application" }
+                        },
+                        "responseRate": { "type": "integer", "description": "Percentage of applications with non-pending status" },
+                        "monthlyTrend": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": { "type": "string" },
+                              "count": { "type": "integer" }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "profile": {
+                      "type": "object",
+                      "properties": {
+                        "completionPercentage": { "type": "integer" },
+                        "hasCv": { "type": "boolean" },
+                        "hasPortfolio": { "type": "boolean" }
+                      }
+                    },
+                    "recommendations": {
+                      "type": "object",
+                      "properties": {
+                        "totalJobs": { "type": "integer" },
+                        "appliedTo": { "type": "integer" },
+                        "newOpportunities": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Candidate not found" }
+        }
+      }
+    },
+    "/dashboard/admin": {
+      "get": {
+        "summary": "Admin dashboard",
+        "description": "Get system-wide statistics for admin use",
+        "tags": ["Dashboard"],
+        "responses": {
+          "200": {
+            "description": "System-wide statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "candidates": { "type": "integer" },
+                        "employers": { "type": "integer" },
+                        "jobs": { "type": "integer" },
+                        "activeJobs": { "type": "integer" },
+                        "applications": { "type": "integer" }
+                      }
+                    },
+                    "recentActivity": {
+                      "type": "object",
+                      "properties": {
+                        "applicationsLast7Days": { "type": "integer" },
+                        "jobsPostedLast7Days": { "type": "integer" },
+                        "newCandidatesLast7Days": { "type": "integer" },
+                        "applicationStatusDistribution": {
+                          "type": "object",
+                          "properties": {
+                            "pending": { "type": "integer" },
+                            "reviewed": { "type": "integer" },
+                            "accepted": { "type": "integer" },
+                            "rejected": { "type": "integer" }
+                          }
+                        }
+                      }
+                    },
+                    "specialties": {
+                      "type": "object",
+                      "properties": {
+                        "topInDemand": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "specialty": { "type": "string" },
+                              "jobCount": { "type": "integer" }
+                            }
+                          }
+                        },
+                        "topCandidateSpecialties": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "specialty": { "type": "string" },
+                              "candidateCount": { "type": "integer" }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "locations": {
+                      "type": "object",
+                      "properties": {
+                        "topJobLocations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "location": { "type": "string" },
+                              "jobCount": { "type": "integer" }
+                            }
+                          }
+                        },
+                        "topCandidateLocations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "location": { "type": "string" },
+                              "candidateCount": { "type": "integer" }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "systemHealth": {
+                      "type": "object",
+                      "properties": {
+                        "averageMatchScore": { "type": "integer" },
+                        "matchScoreDistribution": {
+                          "type": "object",
+                          "properties": {
+                            "high": { "type": "integer" },
+                            "good": { "type": "integer" },
+                            "fair": { "type": "integer" },
+                            "low": { "type": "integer" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "summary": "List notifications",
+        "description": "Get notifications for a user",
+        "tags": ["Notifications"],
+        "parameters": [
+          {
+            "name": "userType",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["candidate", "employer"] },
+            "description": "Type of user"
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "User ID"
+          },
+          {
+            "name": "unreadOnly",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "description": "If true, only return unread notifications"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of notifications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Notification" }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                        "unreadCount": { "type": "integer" }
+                      }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Missing or invalid parameters" }
+        }
+      },
+      "delete": {
+        "summary": "Delete read notifications",
+        "description": "Delete all read notifications for a user",
+        "tags": ["Notifications"],
+        "parameters": [
+          {
+            "name": "userType",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["candidate", "employer"] }
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Notifications deleted successfully" }
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "summary": "Mark notification as read",
+        "description": "Mark a specific notification as read",
+        "tags": ["Notifications"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Notification ID"
+          }
+        ],
+        "responses": {
+          "200": { "description": "Notification marked as read" },
+          "404": { "description": "Notification not found" }
+        }
+      }
+    },
+    "/notifications/mark-all-read": {
+      "post": {
+        "summary": "Mark all notifications as read",
+        "description": "Mark all notifications as read for a user",
+        "tags": ["Notifications"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["userType", "userId"],
+                "properties": {
+                  "userType": { "type": "string", "enum": ["candidate", "employer"] },
+                  "userId": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "All notifications marked as read" },
+          "400": { "description": "Missing parameters" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Application": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "candidateId": { "type": "integer" },
+          "jobId": { "type": "integer" },
+          "status": { "type": "string", "enum": ["pending", "reviewed", "accepted", "rejected"] },
+          "coverLetter": { "type": "string" },
+          "cvUrl": { "type": "string" },
+          "matchScore": { "type": "integer" },
+          "appliedAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "candidateFirstName": { "type": "string" },
+          "candidateLastName": { "type": "string" },
+          "candidateEmail": { "type": "string" },
+          "candidateSpecialty": { "type": "string" },
+          "jobTitle": { "type": "string" },
+          "jobSpecialty": { "type": "string" },
+          "jobLocation": { "type": "string" },
+          "employerName": { "type": "string" },
+          "employerId": { "type": "integer" }
+        }
+      },
+      "ApplicationDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Application" },
+          {
+            "type": "object",
+            "properties": {
+              "jobDescription": { "type": "string" },
+              "jobRequirements": { "type": "string" },
+              "salaryMin": { "type": "integer" },
+              "salaryMax": { "type": "integer" },
+              "jobType": { "type": "string" },
+              "experienceRequired": { "type": "integer" },
+              "candidateExperience": { "type": "integer" },
+              "employerType": { "type": "string" }
+            }
+          }
+        ]
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "userType": { "type": "string", "enum": ["candidate", "employer"] },
+          "userId": { "type": "integer" },
+          "type": { "type": "string" },
+          "message": { "type": "string" },
+          "read": { "type": "integer", "enum": [0, 1] },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "total": { "type": "integer" },
+          "totalPages": { "type": "integer" },
+          "hasNextPage": { "type": "boolean" },
+          "hasPrevPage": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
