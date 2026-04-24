@@ -1,0 +1,40 @@
+name: Deploy MedMatch API to Render
+
+on:
+  push:
+    branches: [ main, master, mock-api-deploy ]
+    paths:
+      - 'mock-api/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        working-directory: ./mock-api
+        run: npm ci
+        
+      - name: Run tests
+        working-directory: ./mock-api
+        run: npm test
+        
+      # Deploy to Render using their deploy hook
+      # Note: This requires a deploy hook URL to be configured in Render dashboard
+      - name: Deploy to Render
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            curl -X POST "$RENDER_DEPLOY_HOOK"
+          else
+            echo "RENDER_DEPLOY_HOOK not set - skipping automatic deploy"
+          fi
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
