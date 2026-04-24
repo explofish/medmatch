@@ -1,0 +1,473 @@
+{
+  "info": {
+    "name": "MedMatch API",
+    "description": "Comprehensive collection for MedMatch API - Candidate matching for medical jobs in Germany",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Signups",
+      "item": [
+        {
+          "name": "Register Candidate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"doctor@example.com\",\n  \"firstName\": \"Max\",\n  \"lastName\": \"Mustermann\",\n  \"yearOfGraduation\": \"2023\",\n  \"specialization\": \"Kardiologie\",\n  \"state\": \"Berlin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Signups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/signups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signups"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Count Signups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/signups/count",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signups", "count"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Candidates",
+      "item": [
+        {
+          "name": "List Candidates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates?location=Berlin&specialty=Kardiologie&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates"],
+              "query": [
+                {
+                  "key": "location",
+                  "value": "Berlin"
+                },
+                {
+                  "key": "specialty",
+                  "value": "Kardiologie"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Candidate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"candidate@example.com\",\n  \"firstName\": \"Anna\",\n  \"lastName\": \"Müller\",\n  \"location\": \"München\",\n  \"specialty\": \"Chirurgie\",\n  \"experienceYears\": 3,\n  \"cvUrl\": \"https://example.com/cv.pdf\",\n  \"preferences\": {\n    \"jobType\": \"full-time\",\n    \"minSalary\": 70000,\n    \"willingToRelocate\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Candidate",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Candidate",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Updated Name\",\n  \"experienceYears\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Candidate",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Employers",
+      "item": [
+        {
+          "name": "List Employers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employers?location=Berlin&hospitalType=University%20Hospital",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employers"],
+              "query": [
+                {
+                  "key": "location",
+                  "value": "Berlin"
+                },
+                {
+                  "key": "hospitalType",
+                  "value": "University Hospital"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Employer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Charité - Universitätsmedizin Berlin\",\n  \"description\": \"Europas größte Universitätsklinik\",\n  \"location\": \"Berlin\",\n  \"website\": \"https://www.charite.de\",\n  \"hospitalType\": \"University Hospital\",\n  \"size\": \"Large\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/employers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Employer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employers/{{employerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employers", "{{employerId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Employer",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/employers/{{employerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employers", "{{employerId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Jobs",
+      "item": [
+        {
+          "name": "List Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs?specialty=Kardiologie&location=Berlin&minSalary=70000&maxSalary=100000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs"],
+              "query": [
+                {
+                  "key": "specialty",
+                  "value": "Kardiologie"
+                },
+                {
+                  "key": "location",
+                  "value": "Berlin"
+                },
+                {
+                  "key": "minSalary",
+                  "value": "70000"
+                },
+                {
+                  "key": "maxSalary",
+                  "value": "100000"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employerId\": {{employerId}},\n  \"title\": \"Facharzt Kardiologie\",\n  \"specialty\": \"Kardiologie\",\n  \"location\": \"Berlin\",\n  \"description\": \"Spannende Position in Kardiologie\",\n  \"requirements\": \"Facharztanerkennung erforderlich\",\n  \"salaryMin\": 70000,\n  \"salaryMax\": 90000,\n  \"jobType\": \"full-time\",\n  \"experienceRequired\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Job",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs", "{{jobId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Job",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"salaryMax\": 95000,\n  \"description\": \"Updated job description\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs", "{{jobId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Job",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "jobs", "{{jobId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Matches",
+      "item": [
+        {
+          "name": "Get Matches for Candidate",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/matches?candidateId={{candidateId}}&minScore=50&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "matches"],
+              "query": [
+                {
+                  "key": "candidateId",
+                  "value": "{{candidateId}}"
+                },
+                {
+                  "key": "minScore",
+                  "value": "50"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Seed Data",
+      "item": [
+        {
+          "name": "Seed Sample Data",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "seed"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default values for variables if not already set",
+          "if (!pm.environment.get('candidateId')) {",
+          "    pm.environment.set('candidateId', '1');",
+          "}",
+          "if (!pm.environment.get('employerId')) {",
+          "    pm.environment.set('employerId', '1');",
+          "}",
+          "if (!pm.environment.get('jobId')) {",
+          "    pm.environment.set('jobId', '1');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string",
+      "description": "Base URL for the API"
+    },
+    {
+      "key": "candidateId",
+      "value": "",
+      "type": "string",
+      "description": "ID of the test candidate"
+    },
+    {
+      "key": "employerId",
+      "value": "",
+      "type": "string",
+      "description": "ID of the test employer"
+    },
+    {
+      "key": "jobId",
+      "value": "",
+      "type": "string",
+      "description": "ID of the test job"
+    }
+  ]
+}
