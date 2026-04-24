@@ -5,16 +5,34 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "dev": "NODE_ENV=development nodemon server.js",
     "test": "jest --testTimeout=10000",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "db:seed": "node scripts/seed.js",
+    "db:reset": "node scripts/reset.js && npm run db:seed",
+    "db:clean": "node scripts/reset.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.js\" \"**/*.json\"",
+    "format:check": "prettier --check \"**/*.js\" \"**/*.json\"",
+    "validate": "npm run lint && npm run format:check && npm run test",
+    "health-check": "node scripts/health-check.js",
+    "prepare": "cd .. && husky install mock-api/.husky || true"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "node-cache": "^5.1.2",
     "sqlite3": "^5.1.6"
   },
   "devDependencies": {
+    "eslint": "^8.56.0",
+    "husky": "^8.0.3",
     "jest": "^29.7.0",
+    "lint-staged": "^15.2.0",
+    "nodemon": "^3.0.2",
+    "prettier": "^3.1.1",
     "supertest": "^6.3.3"
   },
   "engines": {
@@ -22,5 +40,14 @@
   },
   "glitch": {
     "projectType": "node"
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.json": [
+      "prettier --write"
+    ]
   }
 }
