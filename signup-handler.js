@@ -4,7 +4,7 @@
 (function() {
   'use strict';
   
-  const API_URL = 'https://short-cougars-divide.loca.lt';
+  const API_URL = 'https://medmatch-api-staging.onrender.com';
   
   // Wait for DOM to be ready
   function init() {

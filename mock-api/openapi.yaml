@@ -1,0 +1,1390 @@
+openapi: 3.0.3
+info:
+  title: MedMatch API
+  description: |
+    REST API for MedMatch job matching platform connecting medical professionals with employers.
+
+    ## Authentication
+    The API currently operates in development mode without authentication. Production deployment
+    requires JWT-based authentication (see Future Security section).
+
+    ## Rate Limiting
+    Current: No rate limiting (development mode)
+    Planned: 100 requests per 15 minutes per IP
+
+    ## Base URL
+    - Local: `http://localhost:3000`
+    - Staging: `https://api-staging.medmatch.de`
+    - Production: `https://api.medmatch.de`
+
+  version: 1.0.0
+  contact:
+    name: MedMatch API Support
+    email: api@medmatch.de
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api-staging.medmatch.de
+    description: Staging server
+  - url: https://api.medmatch.de
+    description: Production server
+
+paths:
+  # ============ HEALTH ============
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API is running and healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2024-01-15T10:30:00.000Z'
+                  service:
+                    type: string
+                    example: medmatch-api
+
+  # ============ AUTH / SIGNUPS ============
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new candidate
+      description: Register a new candidate on the waitlist
+      operationId: registerCandidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: Successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Email already registered
+                  message:
+                    type: string
+                    example: This email is already on the waitlist
+
+  /api/signups:
+    get:
+      tags:
+        - Authentication
+        - Admin
+      summary: List all signups
+      description: Get all waitlist signups (admin only in production)
+      operationId: listSignups
+      responses:
+        '200':
+          description: List of signups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 150
+                  signups:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Signup'
+
+  /api/signups/count:
+    get:
+      tags:
+        - Authentication
+        - Admin
+      summary: Count signups
+      description: Get total count of signups (lightweight stat)
+      operationId: countSignups
+      responses:
+        '200':
+          description: Signup count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 150
+
+  # ============ CANDIDATES ============
+  /api/candidates:
+    get:
+      tags:
+        - Candidates
+      summary: List candidates
+      description: |
+        List all candidates with pagination, filtering, and sorting.
+        
+        **Security Note:** Currently returns all candidate data including emails.
+        Production will require authentication and return masked data.
+      operationId: listCandidates
+      parameters:
+        - name: location
+          in: query
+          description: Filter by location (partial match)
+          schema:
+            type: string
+        - name: specialty
+          in: query
+          description: Filter by specialty (partial match)
+          schema:
+            type: string
+        - name: minExperience
+          in: query
+          description: Minimum years of experience
+          schema:
+            type: integer
+            minimum: 0
+        - name: maxExperience
+          in: query
+          description: Maximum years of experience
+          schema:
+            type: integer
+            minimum: 0
+        - name: page
+          in: query
+          description: Page number (default 1)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Items per page (default 20, max 100)
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: sortBy
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [id, firstName, lastName, location, specialty, experienceYears, createdAt, updatedAt]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          description: Sort direction
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Paginated list of candidates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    post:
+      tags:
+        - Candidates
+      summary: Create candidate
+      description: Create a new candidate profile
+      operationId: createCandidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateRequest'
+      responses:
+        '201':
+          description: Candidate created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Candidate created successfully
+                  data:
+                    $ref: '#/components/schemas/Candidate'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Email already exists
+
+  /api/candidates/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Candidate ID
+        schema:
+          type: integer
+
+    get:
+      tags:
+        - Candidates
+      summary: Get candidate
+      description: Get a single candidate by ID
+      operationId: getCandidate
+      responses:
+        '200':
+          description: Candidate profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Candidate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Candidates
+      summary: Update candidate
+      description: Update candidate profile (partial update)
+      operationId: updateCandidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateUpdateRequest'
+      responses:
+        '200':
+          description: Candidate updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Candidate updated successfully
+                  data:
+                    $ref: '#/components/schemas/Candidate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Email conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Email already exists
+
+    delete:
+      tags:
+        - Candidates
+      summary: Delete candidate
+      description: Soft delete a candidate profile
+      operationId: deleteCandidate
+      responses:
+        '200':
+          description: Candidate deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Candidate deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============ EMPLOYERS ============
+  /api/employers:
+    get:
+      tags:
+        - Employers
+      summary: List employers
+      description: List all employers with pagination and filtering
+      operationId: listEmployers
+      parameters:
+        - name: location
+          in: query
+          description: Filter by location (partial match)
+          schema:
+            type: string
+        - name: hospitalType
+          in: query
+          description: Filter by hospital type
+          schema:
+            type: string
+            enum: [University Hospital, City Hospital, Clinic]
+        - name: page
+          in: query
+          description: Page number (default 1)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Items per page (default 20, max 100)
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Paginated list of employers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Employer'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    post:
+      tags:
+        - Employers
+      summary: Create employer
+      description: Create a new employer profile
+      operationId: createEmployer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployerRequest'
+      responses:
+        '201':
+          description: Employer created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Employer created successfully
+                  data:
+                    $ref: '#/components/schemas/Employer'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/employers/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Employer ID
+        schema:
+          type: integer
+
+    get:
+      tags:
+        - Employers
+      summary: Get employer
+      description: Get employer profile with their active jobs
+      operationId: getEmployer
+      responses:
+        '200':
+          description: Employer profile with jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/Employer'
+                      - type: object
+                        properties:
+                          jobs:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/JobSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Employers
+      summary: Update employer
+      description: Update employer profile (partial update)
+      operationId: updateEmployer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployerUpdateRequest'
+      responses:
+        '200':
+          description: Employer updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Employer updated successfully
+                  data:
+                    $ref: '#/components/schemas/Employer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============ JOBS ============
+  /api/jobs:
+    get:
+      tags:
+        - Jobs
+      summary: List jobs
+      description: List all jobs with filters, pagination, and sorting
+      operationId: listJobs
+      parameters:
+        - name: employerId
+          in: query
+          description: Filter by employer ID
+          schema:
+            type: integer
+        - name: specialty
+          in: query
+          description: Filter by specialty (partial match)
+          schema:
+            type: string
+        - name: location
+          in: query
+          description: Filter by location (partial match)
+          schema:
+            type: string
+        - name: jobType
+          in: query
+          description: Filter by job type
+          schema:
+            type: string
+            enum: [full-time, part-time, contract]
+        - name: minSalary
+          in: query
+          description: Minimum salary
+          schema:
+            type: integer
+        - name: maxSalary
+          in: query
+          description: Maximum salary
+          schema:
+            type: integer
+        - name: minExperience
+          in: query
+          description: Minimum experience required
+          schema:
+            type: integer
+        - name: maxExperience
+          in: query
+          description: Maximum experience required
+          schema:
+            type: integer
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [active, closed]
+            default: active
+        - name: sortBy
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [id, title, specialty, location, salaryMin, salaryMax, postedAt, createdAt]
+            default: postedAt
+        - name: sortOrder
+          in: query
+          description: Sort direction
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          description: Page number (default 1)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Items per page (default 20, max 100)
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Paginated list of jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    post:
+      tags:
+        - Jobs
+      summary: Create job
+      description: Create a new job posting
+      operationId: createJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobRequest'
+      responses:
+        '201':
+          description: Job created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Job created successfully
+                  data:
+                    $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Employer not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Employer not found
+
+  /api/jobs/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Job ID
+        schema:
+          type: integer
+
+    get:
+      tags:
+        - Jobs
+      summary: Get job
+      description: Get a single job with employer details
+      operationId: getJob
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/JobWithEmployer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Jobs
+      summary: Update job
+      description: Update job posting (partial update)
+      operationId: updateJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobUpdateRequest'
+      responses:
+        '200':
+          description: Job updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Job updated successfully
+                  data:
+                    $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Jobs
+      summary: Delete job
+      description: Soft delete a job posting
+      operationId: deleteJob
+      responses:
+        '200':
+          description: Job deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Job deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============ MATCHING ============
+  /api/matches:
+    get:
+      tags:
+        - Matching
+      summary: Get job matches
+      description: |
+        Get ranked job matches for a candidate based on specialty, location, 
+        experience, and salary preferences.
+        
+        ## Matching Algorithm
+        
+        The algorithm calculates a match score (0-100) based on:
+        
+        | Criteria | Weight | Description |
+        |----------|--------|-------------|
+        | Specialty match | 40% | Exact or partial specialty match |
+        | Location match | 25% | Exact or nearby location match |
+        | Experience match | 20% | Candidate experience vs required |
+        | Salary match | 15% | Salary meets candidate minimum |
+      operationId: getMatches
+      parameters:
+        - name: candidateId
+          in: query
+          required: true
+          description: ID of the candidate to match
+          schema:
+            type: integer
+        - name: minScore
+          in: query
+          description: Minimum match score (0-100, default 0)
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+            default: 0
+        - name: limit
+          in: query
+          description: Maximum number of matches (default 20, max 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Ranked job matches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidate:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      firstName:
+                        type: string
+                      lastName:
+                        type: string
+                      specialty:
+                        type: string
+                      location:
+                        type: string
+                      experienceYears:
+                        type: integer
+                  matches:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        job:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            employerId:
+                              type: integer
+                            employerName:
+                              type: string
+                            hospitalType:
+                              type: string
+                            title:
+                              type: string
+                            specialty:
+                              type: string
+                            location:
+                              type: string
+                            salaryMin:
+                              type: integer
+                            salaryMax:
+                              type: integer
+                            jobType:
+                              type: string
+                            experienceRequired:
+                              type: integer
+                            postedAt:
+                              type: string
+                              format: date-time
+                        matchScore:
+                          type: integer
+                          minimum: 0
+                          maximum: 100
+                        matchReasons:
+                          type: array
+                          items:
+                            type: string
+                        matchedCriteria:
+                          type: integer
+                  totalMatches:
+                    type: integer
+                  totalJobsConsidered:
+                    type: integer
+                  minScore:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============ SEED DATA ============
+  /api/seed:
+    post:
+      tags:
+        - Development
+      summary: Seed sample data
+      description: |
+        Seed the database with sample employers (10) and jobs (20) 
+        for development/testing only. Disabled in production.
+      operationId: seedData
+      responses:
+        '200':
+          description: Data seeded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Seed data inserted
+                  employersInserted:
+                    type: integer
+                  jobsInserted:
+                    type: integer
+
+components:
+  schemas:
+    # ============ COMMON ============
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNextPage:
+          type: boolean
+        hasPrevPage:
+          type: boolean
+
+    # ============ SIGNUPS ============
+    Signup:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        yearOfGraduation:
+          type: string
+        specialization:
+          type: string
+        state:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    SignupRequest:
+      type: object
+      required:
+        - email
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+          example: doctor@example.com
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        yearOfGraduation:
+          type: string
+          example: '2020'
+        specialization:
+          type: string
+          example: Kardiologie
+        state:
+          type: string
+          example: Berlin
+
+    SignupResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Successfully joined the waitlist!
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            email:
+              type: string
+            firstName:
+              type: string
+
+    # ============ CANDIDATES ============
+    Candidate:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        location:
+          type: string
+          nullable: true
+        specialty:
+          type: string
+          nullable: true
+        experienceYears:
+          type: integer
+          nullable: true
+        cvUrl:
+          type: string
+          format: uri
+          nullable: true
+        preferences:
+          type: object
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CandidateRequest:
+      type: object
+      required:
+        - email
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+          example: doctor@example.com
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        location:
+          type: string
+          example: Berlin
+        specialty:
+          type: string
+          example: Kardiologie
+        experienceYears:
+          type: integer
+          minimum: 0
+          example: 5
+        cvUrl:
+          type: string
+          format: uri
+          example: https://example.com/cv.pdf
+        preferences:
+          type: object
+          example:
+            jobType: full-time
+            minSalary: 80000
+            willingToRelocate: true
+
+    CandidateUpdateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        location:
+          type: string
+          nullable: true
+        specialty:
+          type: string
+          nullable: true
+        experienceYears:
+          type: integer
+          minimum: 0
+          nullable: true
+        cvUrl:
+          type: string
+          format: uri
+          nullable: true
+        preferences:
+          type: object
+          nullable: true
+
+    CandidateList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Candidate'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ============ EMPLOYERS ============
+    Employer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        website:
+          type: string
+          format: uri
+          nullable: true
+        hospitalType:
+          type: string
+          nullable: true
+        size:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EmployerRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Charité - Universitätsmedizin Berlin
+        description:
+          type: string
+          example: Europas größte Universitätsklinik
+        location:
+          type: string
+          example: Berlin
+        website:
+          type: string
+          format: uri
+          example: https://www.charite.de
+        hospitalType:
+          type: string
+          example: University Hospital
+        size:
+          type: string
+          example: Large
+
+    EmployerUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        website:
+          type: string
+          format: uri
+          nullable: true
+        hospitalType:
+          type: string
+          nullable: true
+        size:
+          type: string
+          nullable: true
+
+    # ============ JOBS ============
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+        employerId:
+          type: integer
+        employerName:
+          type: string
+        hospitalType:
+          type: string
+        title:
+          type: string
+        specialty:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        requirements:
+          type: string
+          nullable: true
+        salaryMin:
+          type: integer
+          nullable: true
+        salaryMax:
+          type: integer
+          nullable: true
+        jobType:
+          type: string
+          nullable: true
+        experienceRequired:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        postedAt:
+          type: string
+          format: date-time
+
+    JobWithEmployer:
+      allOf:
+        - $ref: '#/components/schemas/Job'
+        - type: object
+          properties:
+            employerDescription:
+              type: string
+              nullable: true
+            employerLocation:
+              type: string
+              nullable: true
+            employerWebsite:
+              type: string
+              format: uri
+              nullable: true
+            size:
+              type: string
+              nullable: true
+
+    JobSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        specialty:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        salaryMin:
+          type: integer
+          nullable: true
+        salaryMax:
+          type: integer
+          nullable: true
+        jobType:
+          type: string
+          nullable: true
+        experienceRequired:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        postedAt:
+          type: string
+          format: date-time
+
+    JobRequest:
+      type: object
+      required:
+        - employerId
+        - title
+      properties:
+        employerId:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Facharzt Kardiologie
+        specialty:
+          type: string
+          example: Kardiologie
+        location:
+          type: string
+          example: Berlin
+        description:
+          type: string
+          example: Spannende Position in der Kardiologie-Abteilung
+        requirements:
+          type: string
+          example: Facharztanerkennung in Kardiologie
+        salaryMin:
+          type: integer
+          example: 75000
+        salaryMax:
+          type: integer
+          example: 95000
+        jobType:
+          type: string
+          enum: [full-time, part-time, contract]
+          example: full-time
+        experienceRequired:
+          type: integer
+          minimum: 0
+          example: 5
+        expiresAt:
+          type: string
+          format: date-time
+          example: '2025-12-31T23:59:59.000Z'
+
+    JobUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        specialty:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        requirements:
+          type: string
+          nullable: true
+        salaryMin:
+          type: integer
+          nullable: true
+        salaryMax:
+          type: integer
+          nullable: true
+        jobType:
+          type: string
+          enum: [full-time, part-time, contract]
+          nullable: true
+        experienceRequired:
+          type: integer
+          minimum: 0
+          nullable: true
+        status:
+          type: string
+          enum: [active, closed]
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+  responses:
+    BadRequest:
+      description: Bad request - validation failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Invalid page number
+
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Validation failed
+              errors:
+                type: array
+                items:
+                  type: string
+                example:
+                  - email is required and must be a valid email
+                  - firstName is required
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Candidate not found
+
+  # ============ SECURITY SCHEMES ============
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token for authentication. Obtain by logging in via `/api/auth/login`.
+        **Note:** Currently not implemented (development mode).
+    
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key for service-to-service authentication.
+        **Note:** Currently not implemented (development mode).
+
+# ============ GLOBAL SECURITY ============
+# Development mode: no security required
+# Production: Uncomment the following:
+# security:
+#   - bearerAuth: []

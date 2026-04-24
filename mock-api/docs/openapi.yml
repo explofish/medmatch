@@ -1,0 +1,1310 @@
+openapi: 3.0.0
+info:
+  title: MedMatch API
+  description: |
+    MedMatch API for matching medical graduates with job opportunities in Germany.
+    
+    ## Features
+    - **Candidates**: Profile management for medical professionals
+    - **Employers**: Hospital and clinic profiles with job postings
+    - **Jobs**: Comprehensive job listings with filtering and search
+    - **Matching**: AI-powered job matching algorithm
+    - **Signups**: Waitlist registration for early access
+    
+    ## Authentication
+    Currently open API - authentication will be added in future release.
+    
+  version: 1.0.0
+  contact:
+    name: MedMatch API Support
+    email: api@medmatch.de
+
+servers:
+  - url: https://medmatch-api.glitch.me/api
+    description: Production server (Glitch)
+  - url: http://localhost:3000/api
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Signups
+    description: Waitlist registration
+  - name: Candidates
+    description: Candidate profile management
+  - name: Employers
+    description: Employer and hospital profiles
+  - name: Jobs
+    description: Job postings and listings
+  - name: Matches
+    description: Job matching algorithm
+  - name: Seed
+    description: Development seed data
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API is running and healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /auth/register:
+    post:
+      tags:
+        - Signups
+      summary: Register candidate
+      description: Register a new candidate for the waitlist
+      operationId: registerCandidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: Successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupResponse'
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /signups:
+    get:
+      tags:
+        - Signups
+      summary: List all signups
+      description: Get all waitlist registrations (admin endpoint)
+      operationId: listSignups
+      responses:
+        '200':
+          description: List of signups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  signups:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Signup'
+
+  /signups/count:
+    get:
+      tags:
+        - Signups
+      summary: Count signups
+      description: Get total count of waitlist registrations
+      operationId: countSignups
+      responses:
+        '200':
+          description: Count of signups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  /candidates:
+    get:
+      tags:
+        - Candidates
+      summary: List candidates
+      description: |
+        Get all candidates with filtering, pagination, and sorting.
+        Supports filtering by location, specialty, and experience range.
+      operationId: listCandidates
+      parameters:
+        - name: location
+          in: query
+          description: Filter by location (partial match)
+          schema:
+            type: string
+          example: Berlin
+        - name: specialty
+          in: query
+          description: Filter by specialty (partial match)
+          schema:
+            type: string
+          example: Kardiologie
+        - name: minExperience
+          in: query
+          description: Minimum years of experience
+          schema:
+            type: integer
+        - name: maxExperience
+          in: query
+          description: Maximum years of experience
+          schema:
+            type: integer
+        - name: page
+          in: query
+          description: Page number (default: 1)
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page (default: 20, max: 100)
+          schema:
+            type: integer
+            default: 20
+        - name: sortBy
+          in: query
+          description: Sort column (id, firstName, lastName, location, specialty, experienceYears, createdAt, updatedAt)
+          schema:
+            type: string
+            default: createdAt
+        - name: sortOrder
+          in: query
+          description: Sort direction (asc, desc)
+          schema:
+            type: string
+            default: desc
+      responses:
+        '200':
+          description: Paginated list of candidates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCandidates'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Candidates
+      summary: Create candidate
+      description: Create a new candidate profile
+      operationId: createCandidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateRequest'
+      responses:
+        '201':
+          description: Candidate created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Candidate'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /candidates/{id}:
+    get:
+      tags:
+        - Candidates
+      summary: Get candidate
+      description: Get a single candidate by ID
+      operationId: getCandidate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Candidate ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Candidate details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Candidate'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Candidate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Candidates
+      summary: Update candidate
+      description: Partial update of candidate profile
+      operationId: updateCandidate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Candidate ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateRequest'
+      responses:
+        '200':
+          description: Candidate updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Candidate'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Candidate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Candidates
+      summary: Delete candidate
+      description: Soft delete candidate profile
+      operationId: deleteCandidate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Candidate ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Candidate deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Candidate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employers:
+    get:
+      tags:
+        - Employers
+      summary: List employers
+      description: Get all employers with filtering and pagination
+      operationId: listEmployers
+      parameters:
+        - name: location
+          in: query
+          description: Filter by location (partial match)
+          schema:
+            type: string
+        - name: hospitalType
+          in: query
+          description: Filter by hospital type
+          schema:
+            type: string
+            enum: [University Hospital, City Hospital, Private Hospital, Clinic]
+        - name: page
+          in: query
+          description: Page number (default: 1)
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page (default: 20, max: 100)
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of employers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEmployers'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Employers
+      summary: Create employer
+      description: Create a new employer profile
+      operationId: createEmployer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployerRequest'
+      responses:
+        '201':
+          description: Employer created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Employer'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /employers/{id}:
+    get:
+      tags:
+        - Employers
+      summary: Get employer
+      description: Get employer details with their job listings
+      operationId: getEmployer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Employer ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Employer details with jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    allOf:
+                      - $ref: '#/components/schemas/Employer'
+                      - type: object
+                        properties:
+                          jobs:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/JobSummary'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Employer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Employers
+      summary: Update employer
+      description: Partial update of employer profile
+      operationId: updateEmployer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Employer ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployerRequest'
+      responses:
+        '200':
+          description: Employer updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Employer'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Employer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /jobs:
+    get:
+      tags:
+        - Jobs
+      summary: List jobs
+      description: |
+        Get all jobs with comprehensive filtering, pagination, and sorting.
+        Supports filtering by specialty, location, job type, salary range, and experience requirements.
+      operationId: listJobs
+      parameters:
+        - name: employerId
+          in: query
+          description: Filter by employer ID
+          schema:
+            type: integer
+        - name: specialty
+          in: query
+          description: Filter by specialty (partial match)
+          schema:
+            type: string
+        - name: location
+          in: query
+          description: Filter by location (partial match)
+          schema:
+            type: string
+        - name: jobType
+          in: query
+          description: Filter by job type
+          schema:
+            type: string
+            enum: [full-time, part-time, contract, temporary]
+        - name: minSalary
+          in: query
+          description: Minimum salary
+          schema:
+            type: integer
+        - name: maxSalary
+          in: query
+          description: Maximum salary
+          schema:
+            type: integer
+        - name: minExperience
+          in: query
+          description: Minimum years of experience required
+          schema:
+            type: integer
+        - name: maxExperience
+          in: query
+          description: Maximum years of experience required
+          schema:
+            type: integer
+        - name: status
+          in: query
+          description: Job status
+          schema:
+            type: string
+            default: active
+            enum: [active, inactive, filled, expired]
+        - name: sortBy
+          in: query
+          description: Sort column
+          schema:
+            type: string
+            default: postedAt
+            enum: [id, title, specialty, location, salaryMin, salaryMax, postedAt, createdAt]
+        - name: sortOrder
+          in: query
+          description: Sort direction
+          schema:
+            type: string
+            default: desc
+            enum: [asc, desc]
+        - name: page
+          in: query
+          description: Page number (default: 1)
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page (default: 20, max: 100)
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedJobs'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Jobs
+      summary: Create job
+      description: Create a new job posting
+      operationId: createJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobRequest'
+      responses:
+        '201':
+          description: Job created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Job'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '404':
+          description: Employer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /jobs/{id}:
+    get:
+      tags:
+        - Jobs
+      summary: Get job
+      description: Get job details with employer information
+      operationId: getJob
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Job ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/JobWithEmployer'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Jobs
+      summary: Update job
+      description: Partial update of job posting
+      operationId: updateJob
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Job ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobRequest'
+      responses:
+        '200':
+          description: Job updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/JobWithEmployer'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Jobs
+      summary: Delete job
+      description: Soft delete job posting
+      operationId: deleteJob
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Job ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Job deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /matches:
+    get:
+      tags:
+        - Matches
+      summary: Get job matches
+      description: |
+        Get ranked job matches for a candidate using the matching algorithm.
+        
+        ## Matching Algorithm
+        
+        The algorithm calculates a match score (0-100) based on:
+        
+        | Criteria | Weight | Description |
+        |----------|--------|-------------|
+        | Specialty | 40% | Exact or partial specialty match |
+        | Location | 25% | Exact or nearby location match |
+        | Experience | 20% | Experience vs. requirements |
+        | Salary | 15% | Salary meets candidate preferences |
+        
+        Results are sorted by match score (highest first).
+      operationId: getMatches
+      parameters:
+        - name: candidateId
+          in: query
+          required: true
+          description: Candidate ID to match against
+          schema:
+            type: integer
+        - name: minScore
+          in: query
+          description: Minimum match score filter (0-100)
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+            maximum: 100
+        - name: limit
+          in: query
+          description: Maximum number of matches to return
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Ranked job matches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResponse'
+        '400':
+          description: Missing or invalid candidateId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Candidate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /seed:
+    post:
+      tags:
+        - Seed
+      summary: Seed sample data
+      description: |
+        Seeds the database with 10 sample employers and 20 sample jobs.
+        Useful for development and testing.
+      operationId: seedData
+      responses:
+        '200':
+          description: Data seeded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  employersInserted:
+                    type: integer
+                  jobsInserted:
+                    type: integer
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-04-24T10:00:00.000Z"
+        service:
+          type: string
+          example: medmatch-api
+
+    SignupRequest:
+      type: object
+      required:
+        - email
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+          example: doctor@example.com
+        firstName:
+          type: string
+          example: Max
+        lastName:
+          type: string
+          example: Mustermann
+        yearOfGraduation:
+          type: string
+          example: "2023"
+        specialization:
+          type: string
+          example: Kardiologie
+        state:
+          type: string
+          example: Berlin
+
+    Signup:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        yearOfGraduation:
+          type: string
+        specialization:
+          type: string
+        state:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    SignupResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            email:
+              type: string
+            firstName:
+              type: string
+
+    CandidateRequest:
+      type: object
+      required:
+        - email
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+          example: doctor@example.com
+        firstName:
+          type: string
+          example: Max
+        lastName:
+          type: string
+          example: Mustermann
+        location:
+          type: string
+          example: Berlin
+        specialty:
+          type: string
+          example: Kardiologie
+        experienceYears:
+          type: integer
+          example: 5
+        cvUrl:
+          type: string
+          format: uri
+          example: https://example.com/cv.pdf
+        preferences:
+          type: object
+          properties:
+            jobType:
+              type: string
+              example: full-time
+            minSalary:
+              type: integer
+              example: 80000
+            willingToRelocate:
+              type: boolean
+              example: true
+
+    Candidate:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        location:
+          type: string
+        specialty:
+          type: string
+        experienceYears:
+          type: integer
+        cvUrl:
+          type: string
+        preferences:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginatedCandidates:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Candidate'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    EmployerRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Charité - Universitätsmedizin Berlin
+        description:
+          type: string
+          example: Europas größte Universitätsklinik
+        location:
+          type: string
+          example: Berlin
+        website:
+          type: string
+          format: uri
+          example: https://www.charite.de
+        hospitalType:
+          type: string
+          enum: [University Hospital, City Hospital, Private Hospital, Clinic]
+          example: University Hospital
+        size:
+          type: string
+          enum: [Small, Medium, Large]
+          example: Large
+
+    Employer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        website:
+          type: string
+        hospitalType:
+          type: string
+        size:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginatedEmployers:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Employer'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    JobSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        specialty:
+          type: string
+        location:
+          type: string
+        salaryMin:
+          type: integer
+        salaryMax:
+          type: integer
+        jobType:
+          type: string
+        experienceRequired:
+          type: integer
+        status:
+          type: string
+        postedAt:
+          type: string
+          format: date-time
+
+    JobRequest:
+      type: object
+      required:
+        - employerId
+        - title
+      properties:
+        employerId:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Facharzt Kardiologie
+        specialty:
+          type: string
+          example: Kardiologie
+        location:
+          type: string
+          example: Berlin
+        description:
+          type: string
+          example: Spannende Position in Kardiologie am Standort Berlin.
+        requirements:
+          type: string
+          example: Facharztanerkennung. Erfahrung in Kardiologie erforderlich.
+        salaryMin:
+          type: integer
+          example: 70000
+        salaryMax:
+          type: integer
+          example: 90000
+        jobType:
+          type: string
+          enum: [full-time, part-time, contract, temporary]
+          example: full-time
+        experienceRequired:
+          type: integer
+          example: 3
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2026-12-31T23:59:59Z"
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+        employerId:
+          type: integer
+        employerName:
+          type: string
+        hospitalType:
+          type: string
+        title:
+          type: string
+        specialty:
+          type: string
+        location:
+          type: string
+        description:
+          type: string
+        requirements:
+          type: string
+        salaryMin:
+          type: integer
+        salaryMax:
+          type: integer
+        jobType:
+          type: string
+        experienceRequired:
+          type: integer
+        status:
+          type: string
+        postedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    JobWithEmployer:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Job'
+        - type: object
+          properties:
+            employerDescription:
+              type: string
+            employerLocation:
+              type: string
+            employerWebsite:
+              type: string
+            size:
+              type: string
+
+    PaginatedJobs:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNextPage:
+          type: boolean
+        hasPrevPage:
+          type: boolean
+
+    MatchResponse:
+      type: object
+      properties:
+        candidate:
+          type: object
+          properties:
+            id:
+              type: integer
+            firstName:
+              type: string
+            lastName:
+              type: string
+            specialty:
+              type: string
+            location:
+              type: string
+            experienceYears:
+              type: integer
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/Match'
+        totalMatches:
+          type: integer
+        totalJobsConsidered:
+          type: integer
+        minScore:
+          type: integer
+
+    Match:
+      type: object
+      properties:
+        job:
+          $ref: '#/components/schemas/JobSummary'
+        matchScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Match score from 0-100
+        matchReasons:
+          type: array
+          items:
+            type: string
+          description: Human-readable reasons for the match score
+        matchedCriteria:
+          type: integer
+          description: Number of criteria that matched
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
