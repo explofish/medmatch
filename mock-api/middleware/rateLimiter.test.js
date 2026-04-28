@@ -204,7 +204,7 @@ describe('RateLimiter', () => {
   });
 
   test('middleware should use custom onLimit handler', (done) => {
-    const onLimit = jest.fn((req, res, next, info) => {
+    const onLimit = jest.fn((req, res, _next, _info) => {
       res.status(429).json({ custom: true });
     });
     

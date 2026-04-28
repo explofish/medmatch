@@ -52,8 +52,7 @@ describe('PerformanceMonitor', () => {
       };
       
       // Mock res.end
-      const originalEnd = jest.fn();
-      res.end = function(chunk, encoding) {
+      res.end = function() {
         // Check metrics were updated
         expect(perf.metrics.requests.total).toBe(1);
         expect(perf.metrics.requests.successful).toBe(1);

@@ -19,7 +19,7 @@ describe('ConnectionPool', () => {
       fs.mkdirSync(testDir, { recursive: true });
     }
     if (fs.existsSync(testDbPath)) {
-      try { fs.unlinkSync(testDbPath); } catch (e) {}
+      try { fs.unlinkSync(testDbPath); } catch (e) { /* ignore */ }
     }
     
     pool = new ConnectionPool({
@@ -37,7 +37,7 @@ describe('ConnectionPool', () => {
     }
     // Clean up test database
     if (fs.existsSync(testDbPath)) {
-      try { fs.unlinkSync(testDbPath); } catch (e) {}
+      try { fs.unlinkSync(testDbPath); } catch (e) { /* ignore */ }
     }
   });
 
@@ -63,7 +63,7 @@ describe('ConnectionPool', () => {
       expect(fs.existsSync(path.dirname(newDbPath))).toBe(true);
       clearInterval(newPool.cleanupInterval);
       // Cleanup
-      try { fs.rmdirSync(path.dirname(newDbPath), { recursive: true }); } catch (e) {}
+      try { fs.rmdirSync(path.dirname(newDbPath), { recursive: true }); } catch (e) { /* ignore */ }
     });
   });
 
@@ -101,7 +101,7 @@ describe('ConnectionPool', () => {
   describe('Query Operations', () => {
     test('should execute query', async () => {
       await pool.run('CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT)');
-      await pool.run("INSERT INTO test (name) VALUES ('test1')");
+      await pool.run('INSERT INTO test (name) VALUES ("test1")');
       
       const rows = await pool.query('SELECT * FROM test');
       expect(rows.length).toBe(1);
@@ -110,7 +110,7 @@ describe('ConnectionPool', () => {
 
     test('should execute queryOne for single row', async () => {
       await pool.run('CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT)');
-      await pool.run("INSERT INTO test (name) VALUES ('single')");
+      await pool.run('INSERT INTO test (name) VALUES ("single")');
       
       const row = await pool.queryOne('SELECT * FROM test WHERE name = ?', ['single']);
       expect(row).toBeDefined();
@@ -119,7 +119,7 @@ describe('ConnectionPool', () => {
 
     test('should execute run for write operations', async () => {
       await pool.run('CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT)');
-      const result = await pool.run("INSERT INTO test (name) VALUES ('inserted')");
+      const result = await pool.run('INSERT INTO test (name) VALUES ("inserted")');
       
       expect(result).toHaveProperty('lastID');
       expect(result).toHaveProperty('changes');
@@ -213,8 +213,12 @@ describe('getPool Singleton', () => {
     expect(pool1).not.toBe(pool2);
     
     // Cleanup both intervals
-    if (interval1) clearInterval(interval1);
-    if (pool2 && pool2.cleanupInterval) clearInterval(pool2.cleanupInterval);
+    if (interval1) {
+      clearInterval(interval1);
+    }
+    if (pool2 && pool2.cleanupInterval) {
+      clearInterval(pool2.cleanupInterval);
+    }
   });
 });
 
@@ -230,7 +234,11 @@ describe('resetPool', () => {
     expect(newPool).not.toBe(pool);
     
     // Cleanup intervals
-    if (interval) clearInterval(interval);
-    if (newPool && newPool.cleanupInterval) clearInterval(newPool.cleanupInterval);
+    if (interval) {
+      clearInterval(interval);
+    }
+    if (newPool && newPool.cleanupInterval) {
+      clearInterval(newPool.cleanupInterval);
+    }
   });
 });

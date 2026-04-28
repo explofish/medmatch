@@ -60,7 +60,7 @@ describe('CircuitBreaker', () => {
       const failingFn = jest.fn().mockRejectedValue(new Error('fail'));
       
       for (let i = 0; i < 3; i++) {
-        try { await breaker.execute(failingFn); } catch (e) {}
+        try { await breaker.execute(failingFn); } catch (e) { /* expected */ }
       }
       
       expect(breaker.state).toBe('OPEN');
@@ -72,7 +72,7 @@ describe('CircuitBreaker', () => {
       
       const failingFn = jest.fn().mockRejectedValue(new Error('fail'));
       for (let i = 0; i < 3; i++) {
-        try { await breaker.execute(failingFn); } catch (e) {}
+        try { await breaker.execute(failingFn); } catch (e) { /* expected */ }
       }
       
       expect(openHandler).toHaveBeenCalled();
@@ -81,7 +81,7 @@ describe('CircuitBreaker', () => {
     test('should transition to HALF_OPEN after reset timeout', async () => {
       const failingFn = jest.fn().mockRejectedValue(new Error('fail'));
       for (let i = 0; i < 3; i++) {
-        try { await breaker.execute(failingFn); } catch (e) {}
+        try { await breaker.execute(failingFn); } catch (e) { /* expected */ }
       }
       
       expect(breaker.state).toBe('OPEN');
@@ -108,7 +108,7 @@ describe('CircuitBreaker', () => {
     test('should track state transitions', async () => {
       const failingFn = jest.fn().mockRejectedValue(new Error('fail'));
       for (let i = 0; i < 3; i++) {
-        try { await breaker.execute(failingFn); } catch (e) {}
+        try { await breaker.execute(failingFn); } catch (e) { /* expected */ }
       }
       
       expect(breaker.metrics.stateTransitions.length).toBeGreaterThan(0);
@@ -144,7 +144,7 @@ describe('CircuitBreaker', () => {
 
     test('should track failed calls', async () => {
       const failingFn = jest.fn().mockRejectedValue(new Error('fail'));
-      try { await breaker.execute(failingFn); } catch (e) {}
+      try { await breaker.execute(failingFn); } catch (e) { /* expected */ }
       
       expect(breaker.metrics.totalCalls).toBe(1);
       expect(breaker.metrics.failedCalls).toBe(1);
@@ -160,7 +160,7 @@ describe('CircuitBreaker', () => {
     test('should track rejected calls when OPEN', async () => {
       breaker.toOpen();
       const successFn = jest.fn().mockResolvedValue('result');
-      try { await breaker.execute(successFn); } catch (e) {}
+      try { await breaker.execute(successFn); } catch (e) { /* expected */ }
       
       expect(breaker.metrics.rejectedCalls).toBe(1);
     });

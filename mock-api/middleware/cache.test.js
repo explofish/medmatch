@@ -79,7 +79,7 @@ describe('CacheManager', () => {
   test('should delete value', () => {
     cache.set('delete-test', 'value');
     cache.del('delete-test');
-    const value = cache.get('delete-key');
+    cache.get('delete-key'); // verify it's gone (triggers delete stat)
     expect(cache.stats.deletes).toBe(1);
   });
 
