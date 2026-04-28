@@ -41,7 +41,6 @@ class MetricsCollector {
    */
   recordRequest(method, path, statusCode, duration, errorType = null) {
     const key = `${method}:${path}`;
-    const statusKey = `${method}:${path}:${statusCode}`;
 
     // Increment request count
     this.requestCounts.set(key, (this.requestCounts.get(key) || 0) + 1);
@@ -73,7 +72,6 @@ class MetricsCollector {
    * @param {Object} labels - Additional labels
    */
   recordBusinessMetric(name, value, labels = {}) {
-    const key = `${name}:${JSON.stringify(labels)}`;
     if (!this.businessMetrics.has(name)) {
       this.businessMetrics.set(name, []);
     }
@@ -568,7 +566,7 @@ function metricsMiddleware() {
 function errorTrackingMiddleware(options = {}) {
   const { includeStack = process.env.NODE_ENV !== 'production' } = options;
 
-  return (err, req, res, next) => {
+  return (err, req, res, _next) => {
     const requestId = req.requestId || getRequestId() || 'unknown';
     const statusCode = err.statusCode || err.status || 500;
     const errorType = classifyError(err, statusCode);
