@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedMatch - Employer Dashboard Example</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .dashboard {
+      display: flex;
+      min-height: 100vh;
+    }
+    
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: linear-gradient(180deg, #1a202c 0%, #2d3748 100%);
+      color: white;
+      padding: 30px 0;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    
+    .logo {
+      padding: 0 25px 30px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 25px;
+    }
+    
+    .logo h2 {
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .nav-section {
+      margin-bottom: 25px;
+    }
+    
+    .nav-title {
+      padding: 0 25px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.5;
+      margin-bottom: 12px;
+    }
+    
+    .nav-item {
+      padding: 12px 25px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+    
+    .nav-item:hover,
+    .nav-item.active {
+      background: rgba(255,255,255,0.1);
+      border-left-color: #667eea;
+    }
+    
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      opacity: 0.7;
+    }
+    
+    /* Main Content */
+    .main {
+      flex: 1;
+      margin-left: 260px;
+      padding: 30px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    
+    .header h1 {
+      font-size: 1.8rem;
+      color: #2d3748;
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: 15px;
+    }
+    
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: #4a5568;
+      border: 2px solid #e2e8f0;
+    }
+    
+    .btn-secondary:hover {
+      border-color: #667eea;
+      color: #667eea;
+    }
+    
+    .btn-danger {
+      background: #fed7d7;
+      color: #c53030;
+    }
+    
+    .btn-danger:hover {
+      background: #feb2b2;
+    }
+    
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      transition: all 0.2s;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 15px;
+    }
+    
+    .stat-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .stat-icon.blue {
+      background: #ebf8ff;
+      color: #3182ce;
+    }
+    
+    .stat-icon.green {
+      background: #f0fff4;
+      color: #38a169;
+    }
+    
+    .stat-icon.purple {
+      background: #faf5ff;
+      color: #805ad5;
+    }
+    
+    .stat-icon.orange {
+      background: #fffaf0;
+      color: #dd6b20;
+    }
+    
+    .stat-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    .stat-trend {
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    
+    .stat-trend.up {
+      background: #f0fff4;
+      color: #38a169;
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      color: #718096;
+      font-size: 0.95rem;
+    }
+    
+    /* Content Cards */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+    
+    .card.full-width {
+      grid-column: 1 / -1;
+    }
+    
+    .card-header {
+      padding: 20px 25px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2d3748;
+    }
+    
+    .card-body {
+      padding: 25px;
+    }
+    
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .data-table th {
+      text-align: left;
+      padding: 12px 15px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .data-table td {
+      padding: 15px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .data-table tr:hover {
+      background: #f7fafc;
+    }
+    
+    .cell-title {
+      font-weight: 600;
+      color: #2d3748;
+    }
+    
+    .cell-subtitle {
+      font-size: 0.9rem;
+      color: #718096;
+      margin-top: 4px;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    
+    .badge-success {
+      background: #f0fff4;
+      color: #38a169;
+    }
+    
+    .badge-warning {
+      background: #fffaf0;
+      color: #dd6b20;
+    }
+    
+    .badge-info {
+      background: #ebf8ff;
+      color: #3182ce;
+    }
+    
+    /* Loading */
+    .loading-cell {
+      text-align: center;
+      padding: 40px;
+      color: #a0aec0;
+    }
+    
+    .loading-cell::after {
+      content: '';
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #e2e8f0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 50px;
+      color: #718096;
+    }
+    
+    .empty-state svg {
+      width: 60px;
+      height: 60px;
+      opacity: 0.3;
+      margin-bottom: 15px;
+    }
+    
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+    
+    .modal-overlay.active {
+      display: flex;
+    }
+    
+    .modal {
+      background: white;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+      animation: modalIn 0.3s ease;
+    }
+    
+    @keyframes modalIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    
+    .modal-header {
+      padding: 25px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .modal-header h3 {
+      font-size: 1.3rem;
+      color: #2d3748;
+    }
+    
+    .modal-body {
+      padding: 25px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 8px;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    
+    .modal-footer {
+      padding: 20px 25px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      background: white;
+      padding: 20px 25px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      display: none;
+      align-items: center;
+      gap: 15px;
+      z-index: 2000;
+      animation: toastIn 0.3s ease;
+    }
+    
+    .toast.active {
+      display: flex;
+    }
+    
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateX(100px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    .toast-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .toast-icon.success {
+      background: #f0fff4;
+      color: #38a169;
+    }
+    
+    .toast-icon.error {
+      background: #fff5f5;
+      color: #c53030;
+    }
+    
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .sidebar {
+        width: 200px;
+      }
+      .main {
+        margin-left: 200px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      .main {
+        margin-left: 0;
+      }
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      .header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .header-actions {
+        flex-direction: column;
+      }
+      button {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <h2>🏥 MedMatch</h2>
+      </div>
+      
+      <div class="nav-section">
+        <div class="nav-title">Main</div>
+        <div class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          <span>Dashboard</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 13.255A23.931 23.931 0 0 0 18 12a23.931 23.931 0 0 0 3-1.255"/>
+            <path d="M15 6a3 3 0 1 1-6 0"/>
+            <path d="M3 13.255A23.931 23.931 0 0 1 6 12a23.931 23.931 0 0 1-3-1.255"/>
+          </svg>
+          <span>My Jobs</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span>Candidates</span>
+        </div>
+      </div>
+      
+      <div class="nav-section">
+        <div class="nav-title">Settings</div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>Company Profile</span>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main">
+      <div class="header">
+        <div>
+          <h1>Dashboard</h1>
+          <p style="color: #718096; margin-top: 5px;">Welcome back! Here's what's happening with your hospital.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn-secondary" onclick="seedData()">
+            🌱 Seed Data
+          </button>
+          <button class="btn-primary" onclick="openJobModal()">
+            ➕ Post New Job
+          </button>
+        </div>
+      </div>
+      
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-value" id="activeJobsCount">-</div>
+          <div class="stat-label">Active Job Postings</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <span class="stat-trend up">+12%</span>
+          </div>
+          <div class="stat-value" id="totalViews">-</div>
+          <div class="stat-label">Total Job Views</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-value" id="applicationsCount">-</div>
+          <div class="stat-label">Applications Received</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-header">
+            <div class="stat-icon orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-value" id="avgTimeToFill">-</div>
+          <div class="stat-label">Avg. Time to Fill (days)</div>
+        </div>
+      </div>
+      
+      <!-- Content Grid -->
+      <div class="content-grid">
+        <!-- Recent Jobs -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">📝 Recent Job Postings</h3>
+            <button class="btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;">View All</button>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Position</th>
+                  <th>Status</th>
+                  <th>Applications</th>
+                </tr>
+              </thead>
+              <tbody id="jobsTableBody">
+                <tr>
+                  <td colspan="3" class="loading-cell">Loading jobs...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Recent Candidates -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">👨‍⚕️ Recent Candidates</h3>
+            <button class="btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;">View All</button>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Specialty</th>
+                  <th>Experience</th>
+                </tr>
+              </thead>
+              <tbody id="candidatesTableBody">
+                <tr>
+                  <td colspan="3" class="loading-cell">Loading candidates...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- API Status -->
+        <div class="card full-width">
+          <div class="card-header">
+            <h3 class="card-title">🔌 API Connection Status</h3>
+            <span id="apiStatus" class="badge badge-info">Checking...</span>
+          </div>
+          <div class="card-body">
+            <p style="color: #718096; margin-bottom: 15px;">
+              This dashboard uses the <code>medmatch-client.js</code> library to connect to your API.
+            </p>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+              <button class="btn-secondary" onclick="testConnection()">Test Connection</button>
+              <button class="btn-secondary" onclick="loadData()">Refresh Data</button>
+              <span style="color: #a0aec0; font-size: 0.9rem; align-self: center;">
+                API URL: <code style="background: #f7fafc; padding: 4px 8px; border-radius: 4px;">http://localhost:3000</code>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <!-- Post Job Modal -->
+  <div class="modal-overlay" id="jobModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Post New Job</h3>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Job Title <span style="color: #e53e3e;">*</span></label>
+          <input type="text" id="jobTitle" placeholder="e.g., Senior Cardiologist">
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Specialty <span style="color: #e53e3e;">*</span></label>
+            <select id="jobSpecialty">
+              <option value="">Select...</option>
+              <option value="Innere Medizin">Innere Medizin</option>
+              <option value="Kardiologie">Kardiologie</option>
+              <option value="Chirurgie">Chirurgie</option>
+              <option value="Orthopädie">Orthopädie</option>
+              <option value="Pädiatrie">Pädiatrie</option>
+              <option value="Neurologie">Neurologie</option>
+              <option value="Anästhesiologie">Anästhesiologie</option>
+              <option value="Dermatologie">Dermatologie</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Location <span style="color: #e53e3e;">*</span></label>
+            <input type="text" id="jobLocation" placeholder="e.g., Berlin">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Min Salary (€)</label>
+            <input type="number" id="jobMinSalary" placeholder="50000">
+          </div>
+          <div class="form-group">
+            <label>Max Salary (€)</label>
+            <input type="number" id="jobMaxSalary" placeholder="80000">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Job Type</label>
+          <select id="jobType">
+            <option value="full-time">Full-time</option>
+            <option value="part-time">Part-time</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="jobDescription" rows="3" placeholder="Brief job description..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeJobModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitJob()">Post Job</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <div class="toast-icon success" id="toastIcon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="20" height="20">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <div>
+      <div style="font-weight: 600; color: #2d3748;" id="toastTitle">Success!</div>
+      <div style="color: #718096; font-size: 0.9rem;" id="toastMessage">Operation completed successfully.</div>
+    </div>
+  </div>
+
+  <!-- Import the MedMatch Client -->
+  <script type="module">
+    import { MedMatchClient, MedMatchAPIError } from '../medmatch-client.js';
+    
+    // Initialize the API client
+    const client = new MedMatchClient({
+      baseUrl: 'http://localhost:3000',
+      timeout: 15000,
+      retries: 3
+    });
+    
+    // Current employer ID (would come from auth in real app)
+    const CURRENT_EMPLOYER_ID = 1;
+    
+    // Make functions available globally
+    window.openJobModal = () => {
+      document.getElementById('jobModal').classList.add('active');
+    };
+    
+    window.closeJobModal = () => {
+      document.getElementById('jobModal').classList.remove('active');
+      // Clear form
+      document.getElementById('jobTitle').value = '';
+      document.getElementById('jobSpecialty').value = '';
+      document.getElementById('jobLocation').value = '';
+      document.getElementById('jobMinSalary').value = '';
+      document.getElementById('jobMaxSalary').value = '';
+      document.getElementById('jobDescription').value = '';
+    };
+    
+    window.submitJob = async () => {
+      const title = document.getElementById('jobTitle').value;
+      const specialty = document.getElementById('jobSpecialty').value;
+      const location = document.getElementById('jobLocation').value;
+      
+      if (!title || !specialty || !location) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+      }
+      
+      try {
+        const jobData = {
+          employerId: CURRENT_EMPLOYER_ID,
+          title,
+          specialty,
+          location,
+          description: document.getElementById('jobDescription').value,
+          salaryMin: document.getElementById('jobMinSalary').value || undefined,
+          salaryMax: document.getElementById('jobMaxSalary').value || undefined,
+          jobType: document.getElementById('jobType').value
+        };
+        
+        await client.createJob(jobData);
+        closeJobModal();
+        showToast('Job posted successfully!', 'success');
+        loadData();
+      } catch (error) {
+        showToast(`Error: ${error.message}`, 'error');
+      }
+    };
+    
+    window.seedData = async () => {
+      try {
+        const result = await client.seedData();
+        showToast(`Seeded ${result.data.employersInserted} employers and ${result.data.jobsInserted} jobs`, 'success');
+        loadData();
+      } catch (error) {
+        showToast(`Error seeding data: ${error.message}`, 'error');
+      }
+    };
+    
+    window.testConnection = async () => {
+      const statusEl = document.getElementById('apiStatus');
+      statusEl.textContent = 'Testing...';
+      statusEl.className = 'badge badge-warning';
+      
+      try {
+        await client.health();
+        statusEl.textContent = 'Connected';
+        statusEl.className = 'badge badge-success';
+        showToast('API connection successful', 'success');
+      } catch (error) {
+        statusEl.textContent = 'Disconnected';
+        statusEl.className = 'badge badge-warning';
+        showToast('API connection failed', 'error');
+      }
+    };
+    
+    window.loadData = async () => {
+      await loadStats();
+      await loadJobs();
+      await loadCandidates();
+    };
+    
+    async function loadStats() {
+      try {
+        // Simulate stats (real implementation would use dedicated endpoints)
+        const jobs = await client.listJobs({ employerId: CURRENT_EMPLOYER_ID, limit: 100 });
+        const activeJobs = jobs.data.data.filter(j => j.status === 'active').length;
+        
+        document.getElementById('activeJobsCount').textContent = activeJobs;
+        document.getElementById('totalViews').textContent = Math.floor(Math.random() * 500 + 100);
+        document.getElementById('applicationsCount').textContent = Math.floor(Math.random() * 50 + 10);
+        document.getElementById('avgTimeToFill').textContent = Math.floor(Math.random() * 30 + 14);
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    }
+    
+    async function loadJobs() {
+      const tbody = document.getElementById('jobsTableBody');
+      
+      try {
+        const response = await client.listJobs({ employerId: CURRENT_EMPLOYER_ID, limit: 5 });
+        const jobs = response.data.data;
+        
+        if (jobs.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="3">
+                <div class="empty-state">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                  </svg>
+                  <p>No job postings yet. Click "Post New Job" to get started.</p>
+                </div>
+              </td>
+            </tr>
+          `;
+        } else {
+          tbody.innerHTML = jobs.map(job => `
+            <tr>
+              <td>
+                <div class="cell-title">${job.title}</div>
+                <div class="cell-subtitle">${job.location}</div>
+              </td>
+              <td><span class="badge badge-success">${job.status}</span></td>
+              <td>${Math.floor(Math.random() * 20)}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (error) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="3" style="text-align: center; color: #e53e3e; padding: 20px;">
+              Error loading jobs. Make sure the API server is running.
+            </td>
+          </tr>
+        `;
+      }
+    }
+    
+    async function loadCandidates() {
+      const tbody = document.getElementById('candidatesTableBody');
+      
+      try {
+        const response = await client.listCandidates({ limit: 5 });
+        const candidates = response.data.data;
+        
+        if (candidates.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="3">
+                <div class="empty-state">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                  </svg>
+                  <p>No candidates in the system yet.</p>
+                </div>
+              </td>
+            </tr>
+          `;
+        } else {
+          tbody.innerHTML = candidates.map(c => `
+            <tr>
+              <td>
+                <div class="cell-title">Dr. ${c.firstName} ${c.lastName}</div>
+                <div class="cell-subtitle">${c.location || 'Location not set'}</div>
+              </td>
+              <td>${c.specialty || '-'}</td>
+              <td>${c.experienceYears !== null ? c.experienceYears + ' years' : '-'}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (error) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="3" style="text-align: center; color: #e53e3e; padding: 20px;">
+              Error loading candidates.
+            </td>
+          </tr>
+        `;
+      }
+    }
+    
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toastIcon');
+      const title = document.getElementById('toastTitle');
+      const msg = document.getElementById('toastMessage');
+      
+      icon.className = `toast-icon ${type}`;
+      icon.innerHTML = type === 'success' 
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+      
+      title.textContent = type === 'success' ? 'Success!' : 'Error';
+      msg.textContent = message;
+      
+      toast.classList.add('active');
+      
+      setTimeout(() => {
+        toast.classList.remove('active');
+      }, 4000);
+    }
+    
+    // Initialize
+    testConnection();
+    loadData();
+  </script>
+</body>
+</html>

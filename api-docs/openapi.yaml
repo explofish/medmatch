@@ -1324,46 +1324,180 @@ components:
           format: date-time
           nullable: true
 
+    # ============ ERROR SCHEMAS ============
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Short error identifier
+          example: Not found
+        code:
+          type: string
+          description: Machine-readable error code
+          example: NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error message
+          example: The requested resource was not found
+      required:
+        - error
+        - code
+
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            errors:
+              type: array
+              items:
+                type: string
+              description: List of specific validation errors
+              example:
+                - email is required and must be a valid email
+                - firstName is required
+          required:
+            - errors
+
   responses:
     BadRequest:
       description: Bad request - validation failed
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              error:
-                type: string
-                example: Invalid page number
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidPage:
+              summary: Invalid page number
+              value:
+                error: Invalid page number
+                code: BAD_REQUEST
+                message: Page number must be a positive integer
+            invalidLimit:
+              summary: Invalid limit
+              value:
+                error: Invalid limit
+                code: BAD_REQUEST
+                message: Limit must be between 1 and 100
 
     ValidationError:
       description: Validation failed
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              error:
-                type: string
-                example: Validation failed
-              errors:
-                type: array
-                items:
-                  type: string
-                example:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            missingFields:
+              summary: Missing required fields
+              value:
+                error: Validation failed
+                code: VALIDATION_ERROR
+                errors:
                   - email is required and must be a valid email
                   - firstName is required
+                  - lastName is required
+            invalidEmail:
+              summary: Invalid email format
+              value:
+                error: Validation failed
+                code: VALIDATION_ERROR
+                errors:
+                  - email must be a valid email address
+            duplicateEmail:
+              summary: Email already exists
+              value:
+                error: Email already exists
+                code: CONFLICT
+                message: This email is already registered in the system
 
     NotFound:
       description: Resource not found
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              error:
-                type: string
-                example: Candidate not found
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            candidateNotFound:
+              summary: Candidate not found
+              value:
+                error: Candidate not found
+                code: NOT_FOUND
+                message: No candidate found with ID 123
+            employerNotFound:
+              summary: Employer not found
+              value:
+                error: Employer not found
+                code: NOT_FOUND
+                message: No employer found with ID 456
+            jobNotFound:
+              summary: Job not found
+              value:
+                error: Job not found
+                code: NOT_FOUND
+                message: No job found with ID 789
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingToken:
+              summary: Missing authentication token
+              value:
+                error: Unauthorized
+                code: UNAUTHORIZED
+                message: Authentication token is required
+            invalidToken:
+              summary: Invalid token
+              value:
+                error: Unauthorized
+                code: UNAUTHORIZED
+                message: Invalid or expired authentication token
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Forbidden
+            code: FORBIDDEN
+            message: You do not have permission to access this resource
+
+    Conflict:
+      description: Conflict - resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            duplicateEmail:
+              summary: Duplicate email
+              value:
+                error: Email already exists
+                code: CONFLICT
+                message: A candidate with this email already exists
+            duplicateSignup:
+              summary: Duplicate signup
+              value:
+                error: Email already registered
+                code: CONFLICT
+                message: This email is already on the waitlist
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Internal server error
+            code: INTERNAL_ERROR
+            message: An unexpected error occurred. Please try again later.
 
   # ============ SECURITY SCHEMES ============
   securitySchemes:
@@ -1372,15 +1506,56 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: |
-        JWT token for authentication. Obtain by logging in via `/api/auth/login`.
+        JWT token for authentication.
+
+        ## Obtaining a Token
+
+        In production, authenticate via:
+        ```
+        POST /api/auth/login
+        {
+          "email": "user@example.com",
+          "password": "your-password"
+        }
+        ```
+
+        ## Using the Token
+
+        Include the token in the Authorization header:
+        ```
+        Authorization: Bearer <your-jwt-token>
+        ```
+
+        ## Token Structure
+
+        JWT tokens contain:
+        - `sub`: User ID
+        - `email`: User email
+        - `role`: User role (candidate, employer, admin)
+        - `iat`: Issued at timestamp
+        - `exp`: Expiration timestamp
+
         **Note:** Currently not implemented (development mode).
-    
+
     apiKey:
       type: apiKey
       in: header
       name: X-API-Key
       description: |
         API key for service-to-service authentication.
+
+        ## Using API Keys
+
+        Include your API key in the request header:
+        ```
+        X-API-Key: your-api-key-here
+        ```
+
+        ## Obtaining API Keys
+
+        Contact the API administrator to generate service-to-service API keys.
+        Keys are scoped to specific endpoints and have rate limits.
+
         **Note:** Currently not implemented (development mode).
 
 # ============ GLOBAL SECURITY ============

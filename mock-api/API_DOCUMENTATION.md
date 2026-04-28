@@ -10,6 +10,99 @@ Local development: `http://localhost:3000`
 
 Currently no authentication required for local development.
 
+## Rate Limiting
+
+The API implements token bucket rate limiting to ensure fair usage and platform stability.
+
+### Rate Limit Tiers
+
+| Tier | Requests per 15min | Use Case |
+|------|-------------------|----------|
+| `anonymous` | 100 | Unauthenticated requests |
+| `free` | 1,000 | Standard API users |
+| `premium` | 10,000 | Paid tier users |
+| `internal` | 100,000 | Internal services |
+
+### Rate Limit Headers
+
+All API responses include rate limit information:
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Maximum requests allowed per window |
+| `X-RateLimit-Remaining` | Remaining requests in current window |
+| `Retry-After` | Seconds until retry (when limited) |
+
+### Rate Limit Response
+
+When rate limit is exceeded:
+
+```json
+{
+  "error": "Too Many Requests",
+  "message": "Rate limit exceeded. Please try again later.",
+  "retryAfter": 900,
+  "limit": 1000
+}
+```
+
+**Status Code:** `429 Too Many Requests`
+
+### Endpoint-Specific Limits
+
+| Endpoint | Rate Limit | Notes |
+|----------|------------|-------|
+| `POST /api/auth/register` | 100/15min (anonymous) | Stricter to prevent abuse |
+| `POST /api/auth/*` | 100/15min (anonymous) | Authentication endpoints |
+| `GET /api/*` | 1,000/15min (free) | Standard read operations |
+| `POST /api/*` | 1,000/15min (free) | Standard write operations |
+| `GET /api/signups/*` | 100,000/15min (internal) | Admin endpoints |
+
+## Response Caching
+
+The API implements response caching to improve performance and reduce server load.
+
+### Cache Headers
+
+| Header | Description |
+|--------|-------------|
+| `X-Cache` | `HIT` (cached) or `MISS` (fresh) |
+| `X-Cache-Key` | Cache key (debug purposes) |
+
+### Cache Duration by Endpoint
+
+| Endpoint Type | Cache TTL | Notes |
+|---------------|-----------|-------|
+| `GET /api/jobs` | 5 minutes | Job listings |
+| `GET /api/candidates` | 1 minute | Candidate profiles |
+| `GET /api/employers` | 5 minutes | Employer listings |
+| `GET /api/candidates/:id` | 1 minute | Individual profile |
+| `GET /api/health` | No cache | Health check |
+
+### Cache Bypass
+
+Add `?nocache=1` to any GET request to bypass caching:
+
+```bash
+curl "http://localhost:3000/api/jobs?nocache=1"
+```
+
+## Response Compression
+
+API responses are automatically compressed using gzip or brotli (if supported).
+
+### Compression Headers
+
+| Header | Description |
+|--------|-------------|
+| `Content-Encoding` | `gzip`, `deflate`, or `br` (brotli) |
+| `X-Compression-Ratio` | Percentage size reduction |
+| `Vary` | `Accept-Encoding` |
+
+### Compression Threshold
+
+Responses larger than 1KB are automatically compressed.
+
 ---
 
 ## Endpoints Overview

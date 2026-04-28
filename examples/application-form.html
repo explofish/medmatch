@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedMatch - Application Form Example</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    
+    .form-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    
+    .form-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    
+    .form-header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    
+    .form-header p {
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+    
+    .form-body {
+      padding: 40px;
+    }
+    
+    .progress-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 40px;
+      position: relative;
+    }
+    
+    .progress-steps::before {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: 15%;
+      right: 15%;
+      height: 4px;
+      background: #e2e8f0;
+      z-index: 0;
+    }
+    
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .step-number {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: #718096;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      margin-bottom: 8px;
+      transition: all 0.3s;
+    }
+    
+    .step.active .step-number,
+    .step.completed .step-number {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .step-label {
+      font-size: 0.85rem;
+      color: #718096;
+      font-weight: 500;
+    }
+    
+    .step.active .step-label {
+      color: #667eea;
+    }
+    
+    .form-section {
+      display: none;
+    }
+    
+    .form-section.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .section-title {
+      font-size: 1.4rem;
+      color: #2d3748;
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .form-group {
+      margin-bottom: 25px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+    
+    label .required {
+      color: #e53e3e;
+      margin-left: 4px;
+    }
+    
+    input, select, textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: all 0.2s;
+      background: #f7fafc;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    input.error, select.error, textarea.error {
+      border-color: #e53e3e;
+      background: #fff5f5;
+    }
+    
+    .error-text {
+      color: #e53e3e;
+      font-size: 0.875rem;
+      margin-top: 6px;
+    }
+    
+    .help-text {
+      color: #718096;
+      font-size: 0.875rem;
+      margin-top: 6px;
+    }
+    
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+    }
+    
+    .checkbox-group label {
+      margin: 0;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    
+    .salary-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    
+    .form-navigation {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 40px;
+      padding-top: 30px;
+      border-top: 2px solid #e2e8f0;
+    }
+    
+    button {
+      padding: 14px 32px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background: #edf2f7;
+      color: #4a5568;
+    }
+    
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+    
+    .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* Success State */
+    .success-message {
+      text-align: center;
+      padding: 40px;
+    }
+    
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 30px;
+    }
+    
+    .success-icon svg {
+      width: 40px;
+      height: 40px;
+      color: white;
+    }
+    
+    .success-message h2 {
+      font-size: 1.8rem;
+      color: #2d3748;
+      margin-bottom: 15px;
+    }
+    
+    .success-message p {
+      color: #718096;
+      margin-bottom: 30px;
+    }
+    
+    /* Loading State */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255,255,255,0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .loading-overlay.active {
+      display: flex;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Alert Messages */
+    .alert {
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .alert-error {
+      background: #fff5f5;
+      color: #c53030;
+      border-left: 4px solid #c53030;
+    }
+    
+    .alert-info {
+      background: #ebf8ff;
+      color: #2b6cb0;
+      border-left: 4px solid #4299e1;
+    }
+    
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    
+    @media (max-width: 600px) {
+      .two-column {
+        grid-template-columns: 1fr;
+      }
+      
+      .salary-inputs {
+        grid-template-columns: 1fr;
+      }
+      
+      .form-header, .form-body {
+        padding: 25px;
+      }
+      
+      .form-navigation {
+        flex-direction: column-reverse;
+        gap: 15px;
+      }
+      
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+  </div>
+  
+  <div class="container">
+    <div class="form-card">
+      <div class="form-header">
+        <h1>🩺 Join MedMatch</h1>
+        <p>Create your profile and get matched with top medical positions</p>
+      </div>
+      
+      <div class="form-body">
+        <!-- Progress Steps -->
+        <div class="progress-steps">
+          <div class="step active" id="step1-indicator">
+            <div class="step-number">1</div>
+            <span class="step-label">Personal</span>
+          </div>
+          <div class="step" id="step2-indicator">
+            <div class="step-number">2</div>
+            <span class="step-label">Professional</span>
+          </div>
+          <div class="step" id="step3-indicator">
+            <div class="step-number">3</div>
+            <span class="step-label">Preferences</span>
+          </div>
+        </div>
+        
+        <!-- Alert Container -->
+        <div id="alertContainer"></div>
+        
+        <!-- Step 1: Personal Information -->
+        <div class="form-section active" id="step1">
+          <h2 class="section-title">
+            <span>👤</span> Personal Information
+          </h2>
+          
+          <div class="two-column">
+            <div class="form-group">
+              <label>First Name <span class="required">*</span></label>
+              <input type="text" id="firstName" placeholder="Dr. Max" required>
+            </div>
+            <div class="form-group">
+              <label>Last Name <span class="required">*</span></label>
+              <input type="text" id="lastName" placeholder="Mustermann" required>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Email Address <span class="required">*</span></label>
+            <input type="email" id="email" placeholder="max.mustermann@example.com" required>
+            <p class="help-text">We'll use this to notify you about matching job opportunities</p>
+          </div>
+          
+          <div class="form-group">
+            <label>Location <span class="required">*</span></label>
+            <select id="location" required>
+              <option value="">Select your preferred location</option>
+              <option value="Berlin">Berlin</option>
+              <option value="München">München</option>
+              <option value="Hamburg">Hamburg</option>
+              <option value="Köln">Köln</option>
+              <option value="Frankfurt">Frankfurt</option>
+              <option value="Stuttgart">Stuttgart</option>
+              <option value="Düsseldorf">Düsseldorf</option>
+              <option value="Leipzig">Leipzig</option>
+              <option value="Heidelberg">Heidelberg</option>
+              <option value="Freiburg">Freiburg</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>CV/Resume URL</label>
+            <input type="url" id="cvUrl" placeholder="https://example.com/my-cv.pdf">
+            <p class="help-text">Link to your CV or LinkedIn profile (optional)</p>
+          </div>
+        </div>
+        
+        <!-- Step 2: Professional Information -->
+        <div class="form-section" id="step2">
+          <h2 class="section-title">
+            <span>🏥</span> Professional Information
+          </h2>
+          
+          <div class="form-group">
+            <label>Medical Specialty <span class="required">*</span></label>
+            <select id="specialty" required>
+              <option value="">Select your specialty</option>
+              <option value="Innere Medizin">Innere Medizin</option>
+              <option value="Kardiologie">Kardiologie</option>
+              <option value="Chirurgie">Chirurgie</option>
+              <option value="Orthopädie">Orthopädie</option>
+              <option value="Pädiatrie">Pädiatrie</option>
+              <option value="Neurologie">Neurologie</option>
+              <option value="Anästhesiologie">Anästhesiologie</option>
+              <option value="Dermatologie">Dermatologie</option>
+              <option value="Gynäkologie">Gynäkologie</option>
+              <option value="Radiologie">Radiologie</option>
+              <option value="Psychiatrie">Psychiatrie</option>
+              <option value="Urologie">Urologie</option>
+              <option value="HNO">HNO</option>
+              <option value="Augenheilkunde">Augenheilkunde</option>
+              <option value="Unfallchirurgie">Unfallchirurgie</option>
+              <option value="Gastroenterologie">Gastroenterologie</option>
+              <option value="Nephrologie">Nephrologie</option>
+              <option value="Onkologie">Onkologie</option>
+              <option value="Endokrinologie">Endokrinologie</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Years of Experience <span class="required">*</span></label>
+            <input type="number" id="experienceYears" min="0" max="50" placeholder="e.g., 5" required>
+          </div>
+        </div>
+        
+        <!-- Step 3: Job Preferences -->
+        <div class="form-section" id="step3">
+          <h2 class="section-title">
+            <span>🎯</span> Job Preferences
+          </h2>
+          
+          <div class="form-group">
+            <label>Minimum Expected Salary (€/year)</label>
+            <input type="number" id="minSalary" min="0" step="1000" placeholder="e.g., 60000">
+            <p class="help-text">We'll only show you jobs meeting this minimum</p>
+          </div>
+          
+          <div class="form-group">
+            <label>Preferred Job Types</label>
+            <div class="checkbox-group">
+              <input type="checkbox" id="prefFullTime" checked>
+              <label for="prefFullTime">Full-time positions</label>
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="prefPartTime">
+              <label for="prefPartTime">Part-time positions</label>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Willing to Relocate</label>
+            <select id="willingToRelocate">
+              <option value="yes">Yes, willing to relocate</option>
+              <option value="no" selected>No, staying in current location</option>
+              <option value="maybe">Maybe, depends on opportunity</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Additional Notes</label>
+            <textarea id="notes" placeholder="Tell us about your career goals, specific requirements, or anything else that might help us find the perfect match for you..."></textarea>
+          </div>
+          
+          <div class="checkbox-group" style="margin-top: 30px;">
+            <input type="checkbox" id="terms" required>
+            <label for="terms">I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a> <span class="required">*</span></label>
+          </div>
+        </div>
+        
+        <!-- Success State -->
+        <div class="form-section" id="success">
+          <div class="success-message">
+            <div class="success-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <h2>Application Submitted!</h2>
+            <p>Thank you for joining MedMatch. We've created your profile and will start matching you with relevant job opportunities right away.</p>
+            <p id="matchInfo" style="font-weight: 600; color: #667eea;"></p>
+            <button class="btn-primary" onclick="resetForm()">Submit Another Application</button>
+          </div>
+        </div>
+        
+        <!-- Navigation -->
+        <div class="form-navigation" id="formNavigation">
+          <button type="button" class="btn-secondary" id="prevBtn" onclick="changeStep(-1)">
+            ← Back
+          </button>
+          <button type="button" class="btn-primary" id="nextBtn" onclick="changeStep(1)">
+            Continue →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import the MedMatch Client -->
+  <script type="module">
+    import { MedMatchClient, MedMatchAPIError } from '../medmatch-client.js';
+    
+    // Initialize the API client
+    const client = new MedMatchClient({
+      baseUrl: 'http://localhost:3000',
+      timeout: 15000,
+      retries: 3
+    });
+    
+    // State
+    let currentStep = 1;
+    const totalSteps = 3;
+    let submittedCandidateId = null;
+    
+    // Make functions available globally
+    window.changeStep = (direction) => {
+      if (direction > 0 && !validateStep(currentStep)) {
+        return;
+      }
+      
+      const newStep = currentStep + direction;
+      
+      if (newStep > totalSteps) {
+        submitForm();
+        return;
+      }
+      
+      if (newStep >= 1 && newStep <= totalSteps) {
+        currentStep = newStep;
+        updateUI();
+      }
+    };
+    
+    window.resetForm = () => {
+      document.getElementById('applicationForm')?.reset();
+      currentStep = 1;
+      submittedCandidateId = null;
+      updateUI();
+    };
+    
+    function validateStep(step) {
+      const container = document.getElementById(`step${step}`);
+      const requiredFields = container.querySelectorAll('[required]');
+      let isValid = true;
+      
+      requiredFields.forEach(field => {
+        field.classList.remove('error');
+        
+        if (!field.value.trim()) {
+          field.classList.add('error');
+          isValid = false;
+        }
+        
+        if (field.type === 'email' && field.value) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(field.value)) {
+            field.classList.add('error');
+            isValid = false;
+          }
+        }
+      });
+      
+      // Special validation for step 3 - terms checkbox
+      if (step === 3) {
+        const terms = document.getElementById('terms');
+        if (!terms.checked) {
+          showAlert('Please accept the Terms of Service to continue.', 'error');
+          return false;
+        }
+      }
+      
+      if (!isValid) {
+        showAlert('Please fill in all required fields.', 'error');
+      }
+      
+      return isValid;
+    }
+    
+    function updateUI() {
+      // Hide all sections
+      document.querySelectorAll('.form-section').forEach(section => {
+        section.classList.remove('active');
+      });
+      
+      // Show current section
+      const currentSection = document.getElementById(currentStep <= totalSteps ? `step${currentStep}` : 'success');
+      if (currentSection) {
+        currentSection.classList.add('active');
+      }
+      
+      // Update step indicators
+      document.querySelectorAll('.step').forEach((step, index) => {
+        step.classList.remove('active', 'completed');
+        if (index + 1 < currentStep) {
+          step.classList.add('completed');
+        } else if (index + 1 === currentStep) {
+          step.classList.add('active');
+        }
+      });
+      
+      // Update navigation buttons
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const nav = document.getElementById('formNavigation');
+      
+      if (currentStep > totalSteps) {
+        nav.style.display = 'none';
+      } else {
+        nav.style.display = 'flex';
+        prevBtn.disabled = currentStep === 1;
+        nextBtn.textContent = currentStep === totalSteps ? 'Submit Application ✓' : 'Continue →';
+      }
+    }
+    
+    async function submitForm() {
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.classList.add('active');
+      
+      try {
+        // Build candidate data
+        const candidateData = {
+          email: document.getElementById('email').value,
+          firstName: document.getElementById('firstName').value,
+          lastName: document.getElementById('lastName').value,
+          location: document.getElementById('location').value,
+          specialty: document.getElementById('specialty').value,
+          experienceYears: parseInt(document.getElementById('experienceYears').value, 10),
+          cvUrl: document.getElementById('cvUrl').value || undefined
+        };
+        
+        // Add preferences
+        const minSalary = document.getElementById('minSalary').value;
+        const willingToRelocate = document.getElementById('willingToRelocate').value;
+        const notes = document.getElementById('notes').value;
+        
+        if (minSalary || willingToRelocate || notes) {
+          candidateData.preferences = {};
+          if (minSalary) candidateData.preferences.minSalary = parseInt(minSalary, 10);
+          if (willingToRelocate) candidateData.preferences.willingToRelocate = willingToRelocate;
+          if (notes) candidateData.preferences.notes = notes;
+          if (document.getElementById('prefPartTime').checked) {
+            candidateData.preferences.jobTypes = ['full-time', 'part-time'];
+          } else {
+            candidateData.preferences.jobTypes = ['full-time'];
+          }
+        }
+        
+        // Create candidate
+        const response = await client.createCandidate(candidateData);
+        submittedCandidateId = response.data.data.id;
+        
+        // Get job matches
+        let matchText = '';
+        try {
+          const matchesResponse = await client.getMatches(submittedCandidateId, { limit: 3 });
+          const matches = matchesResponse.data.matches;
+          if (matches.length > 0) {
+            matchText = `🎉 We found ${matchesResponse.data.totalJobsConsidered} jobs and ${matches.length} are great matches for you!`;
+          } else {
+            matchText = 'We\'ll notify you as soon as matching positions become available.';
+          }
+        } catch (e) {
+          matchText = 'We\'ll start matching you with opportunities right away.';
+        }
+        
+        document.getElementById('matchInfo').textContent = matchText;
+        
+        // Show success
+        currentStep = totalSteps + 1;
+        updateUI();
+        
+      } catch (error) {
+        let errorMessage = 'Something went wrong. Please try again.';
+        
+        if (error instanceof MedMatchAPIError) {
+          if (error.status === 409) {
+            errorMessage = 'This email is already registered. Please use a different email or contact support.';
+          } else if (error.data?.errors) {
+            errorMessage = error.data.errors.join(', ');
+          } else {
+            errorMessage = error.message;
+          }
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        showAlert(`Error: ${errorMessage}`, 'error');
+        overlay.classList.remove('active');
+      }
+    }
+    
+    function showAlert(message, type) {
+      const container = document.getElementById('alertContainer');
+      container.innerHTML = `
+        <div class="alert alert-${type}">
+          <span>${message}</span>
+        </div>
+      `;
+      
+      setTimeout(() => {
+        container.innerHTML = '';
+      }, 5000);
+    }
+    
+    // Initialize
+    updateUI();
+    
+    // Real-time validation
+    document.querySelectorAll('input, select, textarea').forEach(field => {
+      field.addEventListener('blur', () => {
+        field.classList.remove('error');
+      });
+    });
+    
+    // Health check
+    client.health().then(() => {
+      console.log('✅ Connected to MedMatch API');
+    }).catch(() => {
+      showAlert('Warning: API server not available. Make sure to run: cd mock-api && npm start', 'error');
+    });
+  </script>
+</body>
+</html>

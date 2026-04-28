@@ -1,11 +1,14 @@
 /**
  * Middleware exports
- * Rate limiting, caching, and circuit breaker modules
+ * Rate limiting, caching, circuit breaker, and authentication modules
  */
 
 const rateLimiter = require('./rateLimiter');
 const cache = require('./cache');
 const circuitBreaker = require('./circuitBreaker');
+const auth = require('./auth');
+const compression = require('./compression');
+const dbPool = require('./dbPool');
 
 module.exports = {
   // Rate limiting
@@ -25,5 +28,19 @@ module.exports = {
   CircuitBreakerRegistry: circuitBreaker.CircuitBreakerRegistry,
   CircuitBreakerError: circuitBreaker.CircuitBreakerError,
   circuitBreakerRegistry: circuitBreaker.registry,
-  circuitBreakerPresets: circuitBreaker.presets
+  circuitBreakerPresets: circuitBreaker.presets,
+
+  // Authentication
+  requireAuth: auth.requireAuth,
+  optionalAuth: auth.optionalAuth,
+  generateApiKey: auth.generateApiKey,
+
+  // Compression
+  compression: compression.compression,
+  compressionSync: compression.compressionSync,
+
+  // Database connection pooling
+  ConnectionPool: dbPool.ConnectionPool,
+  getPool: dbPool.getPool,
+  resetPool: dbPool.resetPool
 };

@@ -280,6 +280,105 @@ When ready to migrate from SQLite to PostgreSQL:
 - [docs/postman-collection.json](./docs/postman-collection.json) - Ready-to-use Postman collection
 - [GLITCH_DEPLOY.md](./GLITCH_DEPLOY.md) - Detailed Glitch deployment guide
 
+## Quick Start (5 Minutes)
+
+### 1. Install Dependencies
+```bash
+cd mock-api
+npm install
+```
+
+### 2. Start the Server
+```bash
+npm start
+```
+
+### 3. Test the API
+```bash
+# Health check
+curl http://localhost:3000/api/health
+
+# Register a candidate
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","firstName":"Max","lastName":"Mustermann"}'
+
+# List candidates
+curl http://localhost:3000/api/candidates
+```
+
+**Done!** API is running at `http://localhost:3000`
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        MedMatch API                          │
+├─────────────────────────────────────────────────────────────┤
+│  Express.js Server (Node.js 18+)                             │
+│  ├── CORS Middleware (All Origins)                           │
+│  ├── JSON Body Parser                                        │
+│  └── Error Handling Middleware                               │
+├─────────────────────────────────────────────────────────────┤
+│  API Endpoints                                               │
+│  ├── /api/health          → Health check                   │
+│  ├── /api/auth/register   → Signup/Waitlist                │
+│  ├── /api/candidates      → CRUD operations                │
+│  ├── /api/employers       → CRUD operations                │
+│  ├── /api/jobs            → CRUD operations                │
+│  ├── /api/matches         → Job matching algorithm         │
+│  └── /api/seed            → Sample data                    │
+├─────────────────────────────────────────────────────────────┤
+│  SQLite Database                                             │
+│  ├── signups          - Waitlist registrations             │
+│  ├── candidates       - Candidate profiles                 │
+│  ├── employers        - Hospital/employer profiles         │
+│  └── jobs             - Job postings                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PORT` | No | `3000` | Server port |
+| `TEST_DB_PATH` | No (tests only) | `.data/medmatch.db` | Test database path |
+
+**Note:** Production deployment variables (RAILWAY_TOKEN, FLY_API_TOKEN, etc.) are configured in hosting platform, not in code.
+
+## Contributing
+
+### Development Setup
+```bash
+# Clone and install
+cd mock-api
+npm install
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm test -- --coverage
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+### Code Standards
+- All endpoints must have corresponding tests
+- Use JSDoc comments for public functions
+- Maintain 80%+ test coverage
+- Follow existing error handling patterns
+
+### Testing
+```bash
+# Unit tests
+npm test
+
+# Specific test suite
+npm test -- --testNamePattern="Candidate API"
+```
+
 ## Files
 
 - `server.js` - Express API with SQLite (1615 lines, fully documented)

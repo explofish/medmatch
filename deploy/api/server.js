@@ -49,12 +49,35 @@ function initDatabase() {
   });
 }
 
-// CORS - Allow all origins for Glitch
-app.use(cors({
-  origin: '*',
+// CORS - Configurable origins for security
+const allowedOrigins = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',')
+  : (process.env.NODE_ENV === 'production' 
+      ? []  // Empty array = no origins allowed by default in production
+      : ['*']); // Allow all in development
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // In development or if wildcard is allowed
+    if (allowedOrigins.includes('*')) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 

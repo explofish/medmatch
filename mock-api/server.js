@@ -1,12 +1,49 @@
-// MedMatch API with SQLite persistence for Glitch hosting
-// Data persists across container restarts via Glitch's persistent filesystem
+/**
+ * MedMatch API Server
+ *
+ * REST API for MedMatch job matching platform connecting medical professionals with employers.
+ * Built with Express.js and SQLite for data persistence.
+ *
+ * @module server
+ * @version 1.0.0
+ * @author MedMatch Team
+ * @license MIT
+ *
+ * @example
+ * // Start the server
+ * npm start
+ *
+ * // Run tests
+ * npm test
+ */
 
 const express = require('express');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const { requireAuth } = require('./middleware');
+const {
+  metrics,
+  logger,
+  requestIdMiddleware,
+  loggingMiddleware,
+  metricsMiddleware,
+  errorTrackingMiddleware,
+  asyncHandler,
+  performHealthCheck,
+  performLivenessCheck,
+  performReadinessCheck,
+  ERROR_TYPES
+} = require('./middleware/monitoring');
+const fs = require('fs');
 
 const app = express();
+
+/**
+ * Application version
+ * @constant {string}
+ */
+const API_VERSION = '1.0.0';
 
 // Use environment variable for test database path, otherwise use .data folder
 const DATA_DIR = process.env.TEST_DB_PATH 
@@ -29,7 +66,22 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   }
 });
 
-// Create tables if not exists
+/**
+ * Initialize database tables
+ * Creates all required tables if they don't exist:
+ * - signups: Waitlist registrations
+ * - candidates: Candidate profiles with skills and preferences
+ * - employers: Hospital/clinic profiles
+ * - jobs: Job postings linked to employers
+ *
+ * @function initDatabase
+ * @returns {void}
+ * @throws {Error} Logs error to console if table creation fails
+ *
+ * @example
+ * // Called automatically on server startup
+ * initDatabase();
+ */
 function initDatabase() {
   db.serialize(() => {
     // Signups table (existing)
@@ -45,7 +97,7 @@ function initDatabase() {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `, (err) => {
-      if (err) console.error('Error creating signups table:', err.message);
+      if (err) {console.error('Error creating signups table:', err.message);}
     });
 
     // Candidates table
@@ -65,7 +117,7 @@ function initDatabase() {
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `, (err) => {
-      if (err) console.error('Error creating candidates table:', err.message);
+      if (err) {console.error('Error creating candidates table:', err.message);}
     });
 
     // Employers table
@@ -83,7 +135,7 @@ function initDatabase() {
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `, (err) => {
-      if (err) console.error('Error creating employers table:', err.message);
+      if (err) {console.error('Error creating employers table:', err.message);}
     });
 
     // Jobs table
@@ -118,29 +170,235 @@ function initDatabase() {
   });
 }
 
-// CORS - Allow all origins for Glitch
-app.use(cors({
-  origin: '*',
+// CORS - Configurable origins for security
+const allowedOrigins = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',')
+  : (process.env.NODE_ENV === 'production' 
+    ? []  // Empty array = no origins allowed by default in production
+    : ['*']); // Allow all in development
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) {return callback(null, true);}
+    
+    // In development or if wildcard is allowed
+    if (allowedOrigins.includes('*')) {return callback(null, true);}
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
-// ============ HEALTH CHECK ============
+// ============ MONITORING MIDDLEWARE ============
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    service: 'medmatch-api'
-  });
+// Add request ID to all requests
+app.use(requestIdMiddleware());
+
+// Collect metrics for all requests
+app.use(metricsMiddleware());
+
+// Log all requests (structured logging)
+app.use(loggingMiddleware({ skipPaths: ['/health', '/metrics', '/dashboard', '/api/health'] }));
+
+// ============ HEALTH CHECKS ============
+
+/**
+ * @route GET /api/health
+ * @description Comprehensive health check endpoint with deep checks
+ * @group Health - API health monitoring
+ * @returns {Object} 200 - Health status object
+ * @returns {string} status - 'ok', 'warning', or 'degraded'
+ * @returns {string} timestamp - ISO 8601 timestamp of the check
+ * @returns {string} version - API version
+ * @returns {Object} checks - Individual component health checks
+ * @example
+ * // Request
+ * curl http://localhost:3000/api/health
+ *
+ * // Response
+ * {
+ *   "status": "ok",
+ *   "timestamp": "2024-01-15T10:30:00.000Z",
+ *   "version": "1.0.0",
+ *   "uptime": 3600000,
+ *   "checks": {
+ *     "database": { "status": "ok" },
+ *     "memory": { "status": "ok", "used": 64, "total": 512 }
+ *   }
+ * }
+ */
+app.get('/api/health', asyncHandler(async (req, res) => {
+  const health = await performHealthCheck({ db });
+  const statusCode = health.status === 'ok' ? 200 : health.status === 'warning' ? 200 : 503;
+  res.status(statusCode).json(health);
+}));
+
+/**
+ * @route GET /api/health/live
+ * @description Kubernetes liveness probe - is the process running?
+ * @group Health - Kubernetes probes
+ * @returns {Object} 200 - Liveness status
+ * @returns {string} status - Always 'ok' when process is alive
+ * @example
+ * // Request
+ * curl http://localhost:3000/api/health/live
+ *
+ * // Response
+ * {
+ *   "status": "ok",
+ *   "timestamp": "2024-01-15T10:30:00.000Z"
+ * }
+ */
+app.get('/api/health/live', (req, res) => {
+  res.json(performLivenessCheck());
+});
+
+/**
+ * @route GET /api/health/ready
+ * @description Kubernetes readiness probe - is the service ready for traffic?
+ * @group Health - Kubernetes probes
+ * @returns {Object} 200 - Readiness status
+ * @returns {string} status - 'ready' or 'not_ready'
+ * @returns {Object} checks - Component readiness checks
+ * @example
+ * // Request
+ * curl http://localhost:3000/api/health/ready
+ *
+ * // Response
+ * {
+ *   "status": "ready",
+ *   "timestamp": "2024-01-15T10:30:00.000Z",
+ *   "checks": {
+ *     "database": { "status": "ready" }
+ *   }
+ * }
+ */
+app.get('/api/health/ready', asyncHandler(async (req, res) => {
+  const readiness = await performReadinessCheck({ db });
+  const statusCode = readiness.status === 'ready' ? 200 : 503;
+  res.status(statusCode).json(readiness);
+}));
+
+// ============ METRICS ENDPOINTS ============
+
+/**
+ * @route GET /metrics
+ * @description Prometheus-compatible metrics endpoint
+ * @group Monitoring - Metrics collection
+ * @returns {string} Prometheus-formatted metrics
+ * @example
+ * // Request
+ * curl http://localhost:3000/metrics
+ *
+ * // Response (Prometheus format)
+ * # HELP medmatch_api_requests_total Total number of requests
+ * # TYPE medmatch_api_requests_total counter
+ * medmatch_api_requests_total 150
+ */
+app.get('/metrics', (req, res) => {
+  const format = req.query.format;
+
+  if (format === 'json') {
+    return res.json(metrics.getMetrics());
+  }
+
+  // Default: Prometheus format
+  res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  res.send(metrics.toPrometheusFormat());
+});
+
+/**
+ * @route GET /api/metrics
+ * @description API metrics endpoint (JSON format)
+ * @group Monitoring - Metrics collection
+ * @returns {Object} Complete metrics data
+ */
+app.get('/api/metrics', (req, res) => {
+  const format = req.query.format || 'json';
+
+  if (format === 'prometheus') {
+    res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    return res.send(metrics.toPrometheusFormat());
+  }
+
+  res.json(metrics.getMetrics());
+});
+
+// ============ DASHBOARD ============
+
+/**
+ * @route GET /dashboard
+ * @description Local observability dashboard HTML page
+ * @group Monitoring - Observability
+ * @returns {HTML} Dashboard page
+ */
+app.get('/dashboard', (req, res) => {
+  const dashboardPath = path.join(__dirname, 'dashboard.html');
+
+  if (fs.existsSync(dashboardPath)) {
+    res.sendFile(dashboardPath);
+  } else {
+    res.status(404).json({ error: 'Dashboard not found' });
+  }
 });
 
 // ============ SIGNUP ENDPOINTS (existing) ============
 
-// Signup endpoint (matches mock API interface)
+/**
+ * @route POST /api/auth/register
+ * @description Register a new candidate on the waitlist
+ * @group Authentication - User signup and registration
+ * @param {Object} req.body - Registration data
+ * @param {string} req.body.email - Candidate email (required, unique)
+ * @param {string} req.body.firstName - First name (required)
+ * @param {string} req.body.lastName - Last name (required)
+ * @param {string} [req.body.yearOfGraduation] - Year of graduation
+ * @param {string} [req.body.specialization] - Medical specialization
+ * @param {string} [req.body.state] - German state (Bundesland)
+ * @returns {Object} 201 - Successfully registered
+ * @returns {boolean} success - Registration status
+ * @returns {string} message - Success message
+ * @returns {Object} data - Created signup data with ID
+ * @returns {Object} 400 - Missing required fields
+ * @returns {Object} 409 - Email already registered
+ * @returns {Object} 500 - Database error
+ * @example
+ * // Request
+ * curl -X POST http://localhost:3000/api/auth/register \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "email": "doctor@example.com",
+ *     "firstName": "John",
+ *     "lastName": "Doe",
+ *     "yearOfGraduation": "2024",
+ *     "specialization": "Cardiology",
+ *     "state": "Bayern"
+ *   }'
+ *
+ * // Response (201 Created)
+ * {
+ *   "success": true,
+ *   "message": "Successfully joined the waitlist!",
+ *   "data": {
+ *     "id": "1",
+ *     "email": "doctor@example.com",
+ *     "firstName": "John"
+ *   }
+ * }
+ */
 app.post('/api/auth/register', (req, res) => {
   const { email, firstName, lastName, yearOfGraduation, specialization, state } = req.body;
   
@@ -158,17 +416,36 @@ app.post('/api/auth/register', (req, res) => {
   db.run(sql, [email, firstName, lastName, yearOfGraduation || null, specialization || null, state || null], function(err) {
     if (err) {
       if (err.message.includes('UNIQUE constraint failed')) {
-        return res.status(409).json({ 
+        // Record duplicate signup attempt
+        metrics.recordBusinessMetric('signup_duplicate', 1, { email });
+        logger.warn('Duplicate signup attempt', { email, requestId: req.requestId });
+        return res.status(409).json({
           error: 'Email already registered',
           message: 'This email is already on the waitlist'
         });
       }
-      console.error('Database error:', err.message);
+      logger.error('Database error during signup', {
+        error: err.message,
+        requestId: req.requestId,
+        email
+      });
       return res.status(500).json({ error: 'Database error' });
     }
-    
-    console.log('New signup:', { id: this.lastID, email, firstName });
-    
+
+    // Record successful signup
+    metrics.recordBusinessMetric('signup_success', 1, {
+      specialization: specialization || 'unspecified',
+      state: state || 'unspecified',
+      yearOfGraduation: yearOfGraduation || 'unspecified'
+    });
+
+    logger.info('New signup completed', {
+      requestId: req.requestId,
+      userId: this.lastID,
+      email,
+      specialization
+    });
+
     res.status(201).json({
       success: true,
       message: 'Successfully joined the waitlist!',
@@ -181,8 +458,38 @@ app.post('/api/auth/register', (req, res) => {
   });
 });
 
-// Get all signups (admin)
-app.get('/api/signups', (req, res) => {
+/**
+ * @route GET /api/signups
+ * @description Get all waitlist signups (admin endpoint)
+ * @group Authentication - Admin operations
+ * @returns {Object} 200 - List of all signups
+ * @returns {number} count - Total number of signups
+ * @returns {Array} signups - Array of signup objects
+ * @returns {Object} 401 - Authentication required
+ * @returns {Object} 500 - Database error
+ * @example
+ * // Request (with API key)
+ * curl http://localhost:3000/api/signups \
+ *   -H "X-API-Key: your-api-key"
+ *
+ * // Response
+ * {
+ *   "count": 150,
+ *   "signups": [
+ *     {
+ *       "id": 1,
+ *       "email": "doctor@example.com",
+ *       "firstName": "John",
+ *       "lastName": "Doe",
+ *       "yearOfGraduation": "2024",
+ *       "specialization": "Cardiology",
+ *       "state": "Bayern",
+ *       "createdAt": "2024-01-15T10:00:00.000Z"
+ *     }
+ *   ]
+ * }
+ */
+app.get('/api/signups', requireAuth(), (req, res) => {
   db.all('SELECT * FROM signups ORDER BY createdAt DESC', [], (err, rows) => {
     if (err) {
       console.error('Database error:', err.message);
@@ -196,8 +503,25 @@ app.get('/api/signups', (req, res) => {
   });
 });
 
-// Count signups (lightweight stat)
-app.get('/api/signups/count', (req, res) => {
+/**
+ * @route GET /api/signups/count
+ * @description Get total count of waitlist signups (admin endpoint)
+ * @group Authentication - Statistics
+ * @returns {Object} 200 - Signup count
+ * @returns {number} count - Total number of signups
+ * @returns {Object} 401 - Authentication required
+ * @returns {Object} 500 - Database error
+ * @example
+ * // Request (with API key)
+ * curl http://localhost:3000/api/signups/count \
+ *   -H "X-API-Key: your-api-key"
+ *
+ * // Response
+ * {
+ *   "count": 150
+ * }
+ */
+app.get('/api/signups/count', requireAuth(), (req, res) => {
   db.get('SELECT COUNT(*) as count FROM signups', [], (err, row) => {
     if (err) {
       console.error('Database error:', err.message);
@@ -210,8 +534,52 @@ app.get('/api/signups/count', (req, res) => {
 // ============ CANDIDATE PROFILE ENDPOINTS ============
 
 /**
- * GET /api/candidates
- * List candidates with filters, pagination, and sorting
+ * @route GET /api/candidates
+ * @description List all candidates with pagination, filtering, and sorting
+ * @group Candidates - Candidate profile management
+ * @param {string} [req.query.location] - Filter by location (partial match)
+ * @param {string} [req.query.specialty] - Filter by specialty (partial match)
+ * @param {number} [req.query.minExperience] - Minimum years of experience
+ * @param {number} [req.query.maxExperience] - Maximum years of experience
+ * @param {number} [req.query.page=1] - Page number for pagination
+ * @param {number} [req.query.limit=20] - Items per page (max 100)
+ * @param {string} [req.query.sortBy=createdAt] - Sort field (id, firstName, lastName, location, specialty, experienceYears, createdAt, updatedAt)
+ * @param {string} [req.query.sortOrder=desc] - Sort direction (asc, desc)
+ * @returns {Object} 200 - Paginated list of candidates
+ * @returns {Array} data - Array of candidate objects
+ * @returns {Object} pagination - Pagination metadata
+ * @returns {Object} 400 - Invalid query parameters
+ * @returns {Object} 500 - Database error
+ * @example
+ * // Request
+ * curl "http://localhost:3000/api/candidates?location=Berlin&specialty=Kardiologie&page=1&limit=10"
+ *
+ * // Response
+ * {
+ *   "data": [
+ *     {
+ *       "id": 1,
+ *       "email": "doctor@example.com",
+ *       "firstName": "John",
+ *       "lastName": "Doe",
+ *       "location": "Berlin",
+ *       "specialty": "Kardiologie",
+ *       "experienceYears": 5,
+ *       "cvUrl": "https://example.com/cv.pdf",
+ *       "preferences": { "jobType": "full-time" },
+ *       "createdAt": "2024-01-15T10:00:00.000Z",
+ *       "updatedAt": "2024-01-15T10:00:00.000Z"
+ *     }
+ *   ],
+ *   "pagination": {
+ *     "page": 1,
+ *     "limit": 10,
+ *     "total": 50,
+ *     "totalPages": 5,
+ *     "hasNextPage": true,
+ *     "hasPrevPage": false
+ *   }
+ * }
  */
 app.get('/api/candidates', (req, res) => {
   const {
@@ -311,8 +679,35 @@ app.get('/api/candidates', (req, res) => {
 });
 
 /**
- * GET /api/candidates/:id
- * Get single candidate profile
+ * @route GET /api/candidates/:id
+ * @description Get a single candidate profile by ID
+ * @group Candidates - Candidate profile management
+ * @param {number} req.params.id - Candidate ID (numeric)
+ * @returns {Object} 200 - Candidate profile data
+ * @returns {Object} data - Candidate object
+ * @returns {Object} 400 - Invalid candidate ID
+ * @returns {Object} 404 - Candidate not found
+ * @returns {Object} 500 - Database error
+ * @example
+ * // Request
+ * curl http://localhost:3000/api/candidates/1
+ *
+ * // Response
+ * {
+ *   "data": {
+ *     "id": 1,
+ *     "email": "doctor@example.com",
+ *     "firstName": "John",
+ *     "lastName": "Doe",
+ *     "location": "Berlin",
+ *     "specialty": "Kardiologie",
+ *     "experienceYears": 5,
+ *     "cvUrl": "https://example.com/cv.pdf",
+ *     "preferences": { "jobType": "full-time" },
+ *     "createdAt": "2024-01-15T10:00:00.000Z",
+ *     "updatedAt": "2024-01-15T10:00:00.000Z"
+ *   }
+ * }
  */
 app.get('/api/candidates/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -350,8 +745,54 @@ app.get('/api/candidates/:id', (req, res) => {
 });
 
 /**
- * POST /api/candidates
- * Create new candidate profile
+ * @route POST /api/candidates
+ * @description Create a new candidate profile
+ * @group Candidates - Candidate profile management
+ * @param {Object} req.body - Candidate data
+ * @param {string} req.body.email - Email address (required, unique)
+ * @param {string} req.body.firstName - First name (required)
+ * @param {string} req.body.lastName - Last name (required)
+ * @param {string} [req.body.location] - Location/city
+ * @param {string} [req.body.specialty] - Medical specialty
+ * @param {number} [req.body.experienceYears] - Years of experience
+ * @param {string} [req.body.cvUrl] - URL to CV document
+ * @param {Object} [req.body.preferences] - Job preferences object
+ * @returns {Object} 201 - Candidate created successfully
+ * @returns {string} message - Success message
+ * @returns {Object} data - Created candidate object
+ * @returns {Object} 400 - Validation failed
+ * @returns {Object} 409 - Email already exists
+ * @returns {Object} 500 - Database error
+ * @example
+ * // Request
+ * curl -X POST http://localhost:3000/api/candidates \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "email": "doctor@example.com",
+ *     "firstName": "John",
+ *     "lastName": "Doe",
+ *     "location": "Berlin",
+ *     "specialty": "Kardiologie",
+ *     "experienceYears": 5,
+ *     "preferences": { "jobType": "full-time", "minSalary": 80000 }
+ *   }'
+ *
+ * // Response (201 Created)
+ * {
+ *   "message": "Candidate created successfully",
+ *   "data": {
+ *     "id": 1,
+ *     "email": "doctor@example.com",
+ *     "firstName": "John",
+ *     "lastName": "Doe",
+ *     "location": "Berlin",
+ *     "specialty": "Kardiologie",
+ *     "experienceYears": 5,
+ *     "preferences": { "jobType": "full-time", "minSalary": 80000 },
+ *     "createdAt": "2024-01-15T10:00:00.000Z",
+ *     "updatedAt": "2024-01-15T10:00:00.000Z"
+ *   }
+ * }
  */
 app.post('/api/candidates', (req, res) => {
   const {
@@ -437,8 +878,49 @@ app.post('/api/candidates', (req, res) => {
 });
 
 /**
- * PATCH /api/candidates/:id
- * Update candidate profile (partial update)
+ * @route PATCH /api/candidates/:id
+ * @description Update candidate profile (partial update - only provided fields are updated)
+ * @group Candidates - Candidate profile management
+ * @param {number} req.params.id - Candidate ID (numeric)
+ * @param {Object} req.body - Fields to update (all optional)
+ * @param {string} [req.body.email] - Email address (must be unique)
+ * @param {string} [req.body.firstName] - First name
+ * @param {string} [req.body.lastName] - Last name
+ * @param {string} [req.body.location] - Location/city
+ * @param {string} [req.body.specialty] - Medical specialty
+ * @param {number} [req.body.experienceYears] - Years of experience
+ * @param {string} [req.body.cvUrl] - URL to CV document
+ * @param {Object} [req.body.preferences] - Job preferences object
+ * @returns {Object} 200 - Candidate updated successfully
+ * @returns {string} message - Success message
+ * @returns {Object} data - Updated candidate object
+ * @returns {Object} 400 - Invalid candidate ID or validation failed
+ * @returns {Object} 404 - Candidate not found
+ * @returns {Object} 409 - Email conflict (already exists)
+ * @returns {Object} 500 - Database error
+ * @example
+ * // Request - Partial update
+ * curl -X PATCH http://localhost:3000/api/candidates/1 \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "location": "Munich",
+ *     "experienceYears": 6
+ *   }'
+ *
+ * // Response
+ * {
+ *   "message": "Candidate updated successfully",
+ *   "data": {
+ *     "id": 1,
+ *     "email": "doctor@example.com",
+ *     "firstName": "John",
+ *     "lastName": "Doe",
+ *     "location": "Munich",
+ *     "specialty": "Kardiologie",
+ *     "experienceYears": 6,
+ *     "updatedAt": "2024-01-15T11:00:00.000Z"
+ *   }
+ * }
  */
 app.patch('/api/candidates/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -559,8 +1041,27 @@ app.patch('/api/candidates/:id', (req, res) => {
 });
 
 /**
- * DELETE /api/candidates/:id
- * Soft delete candidate
+ * @route DELETE /api/candidates/:id
+ * @description Soft delete a candidate profile (marks as deleted, doesn't remove from database)
+ * @group Candidates - Candidate profile management
+ * @param {number} req.params.id - Candidate ID (numeric)
+ * @returns {Object} 200 - Candidate deleted successfully
+ * @returns {string} message - Success message
+ * @returns {Object} data - Object containing deleted candidate ID
+ * @returns {Object} 400 - Invalid candidate ID
+ * @returns {Object} 404 - Candidate not found
+ * @returns {Object} 500 - Database error
+ * @example
+ * // Request
+ * curl -X DELETE http://localhost:3000/api/candidates/1
+ *
+ * // Response
+ * {
+ *   "message": "Candidate deleted successfully",
+ *   "data": {
+ *     "id": "1"
+ *   }
+ * }
  */
 app.delete('/api/candidates/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -591,8 +1092,45 @@ app.delete('/api/candidates/:id', (req, res) => {
 // ============ EMPLOYER ENDPOINTS ============
 
 /**
- * GET /api/employers
- * List employers with filters, pagination
+ * @route GET /api/employers
+ * @description List all employers with pagination and filtering
+ * @group Employers - Employer profile management
+ * @param {string} [req.query.location] - Filter by location (partial match)
+ * @param {string} [req.query.hospitalType] - Filter by hospital type (University Hospital, City Hospital, Clinic)
+ * @param {number} [req.query.page=1] - Page number for pagination
+ * @param {number} [req.query.limit=20] - Items per page (max 100)
+ * @returns {Object} 200 - Paginated list of employers
+ * @returns {Array} data - Array of employer objects
+ * @returns {Object} pagination - Pagination metadata
+ * @returns {Object} 400 - Invalid query parameters
+ * @returns {Object} 500 - Database error
+ * @example
+ * // Request
+ * curl "http://localhost:3000/api/employers?location=Berlin&hospitalType=University+Hospital"
+ *
+ * // Response
+ * {
+ *   "data": [
+ *     {
+ *       "id": 1,
+ *       "name": "Charité - Universitätsmedizin Berlin",
+ *       "description": "Europas größte Universitätsklinik",
+ *       "location": "Berlin",
+ *       "website": "https://www.charite.de",
+ *       "hospitalType": "University Hospital",
+ *       "size": "Large",
+ *       "createdAt": "2024-01-15T10:00:00.000Z"
+ *     }
+ *   ],
+ *   "pagination": {
+ *     "page": 1,
+ *     "limit": 20,
+ *     "total": 10,
+ *     "totalPages": 1,
+ *     "hasNextPage": false,
+ *     "hasPrevPage": false
+ *   }
+ * }
  */
 app.get('/api/employers', (req, res) => {
   const {
@@ -684,28 +1222,31 @@ app.get('/api/employers/:id', (req, res) => {
     WHERE id = ? AND isDeleted = 0
   `;
 
-  db.get(employerSql, [id], (err, employer) => {
-    if (err) {
-      console.error('Database error:', err.message);
-      return res.status(500).json({ error: 'Database error' });
-    }
+  const jobsSql = `
+    SELECT id, title, specialty, location, salaryMin, salaryMax, jobType, experienceRequired, status, postedAt
+    FROM jobs 
+    WHERE employerId = ? AND isDeleted = 0 AND status = 'active'
+    ORDER BY postedAt DESC
+  `;
 
-    if (!employer) {
-      return res.status(404).json({ error: 'Employer not found' });
-    }
-
-    // Get active jobs for this employer
-    const jobsSql = `
-      SELECT id, title, specialty, location, salaryMin, salaryMax, jobType, experienceRequired, status, postedAt
-      FROM jobs 
-      WHERE employerId = ? AND isDeleted = 0 AND status = 'active'
-      ORDER BY postedAt DESC
-    `;
-
-    db.all(jobsSql, [id], (err, jobs) => {
-      if (err) {
-        console.error('Database error (jobs):', err.message);
-        return res.status(500).json({ error: 'Database error' });
+  // Execute both queries in parallel to avoid N+1 query pattern
+  Promise.all([
+    new Promise((resolve, reject) => {
+      db.get(employerSql, [id], (err, row) => {
+        if (err) {reject(err);}
+        else {resolve(row);}
+      });
+    }),
+    new Promise((resolve, reject) => {
+      db.all(jobsSql, [id], (err, rows) => {
+        if (err) {reject(err);}
+        else {resolve(rows);}
+      });
+    })
+  ])
+    .then(([employer, jobs]) => {
+      if (!employer) {
+        return res.status(404).json({ error: 'Employer not found' });
       }
 
       res.json({
@@ -714,8 +1255,11 @@ app.get('/api/employers/:id', (req, res) => {
           jobs: jobs || []
         }
       });
+    })
+    .catch(err => {
+      console.error('Database error:', err.message);
+      res.status(500).json({ error: 'Database error' });
     });
-  });
 });
 
 /**
@@ -1504,46 +2048,66 @@ app.post('/api/seed', (req, res) => {
     { title: 'Leitender Oberarzt Allgemeinchirurgie', specialty: 'Chirurgie', location: 'Leipzig', salaryMin: 95000, salaryMax: 120000, jobType: 'full-time', experienceRequired: 10 }
   ];
 
-  // Insert employers first
-  const insertEmployer = db.prepare(`
-    INSERT OR IGNORE INTO employers (name, description, location, website, hospitalType, size)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  let employerCount = 0;
-  sampleEmployers.forEach(emp => {
-    insertEmployer.run(emp.name, emp.description, emp.location, emp.website, emp.hospitalType, emp.size, function(err) {
-      if (!err && this.changes > 0) employerCount++;
-    });
-  });
-  insertEmployer.finalize();
-
-  // Then insert jobs (need employer IDs)
-  setTimeout(() => {
-    db.all('SELECT id, name FROM employers WHERE isDeleted = 0', [], (err, employers) => {
-      if (err) {
-        console.error('Error fetching employers:', err.message);
-        return res.status(500).json({ error: 'Database error' });
-      }
-
-      const employerMap = {};
-      employers.forEach(e => {
-        employerMap[e.name] = e.id;
+  // Helper function to run prepared statement with Promise
+  const runPrepared = (stmt, params) => {
+    return new Promise((resolve, reject) => {
+      stmt.run(params, function(err) {
+        if (err) {reject(err);}
+        else {resolve(this.changes);}
       });
+    });
+  };
 
-      const insertJob = db.prepare(`
-        INSERT OR IGNORE INTO jobs (employerId, title, specialty, location, description, requirements, salaryMin, salaryMax, jobType, experienceRequired)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
+  // Insert employers and wait for completion
+  const insertEmployers = async () => {
+    const insertEmployer = db.prepare(`
+      INSERT OR IGNORE INTO employers (name, description, location, website, hospitalType, size)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
 
-      let jobCount = 0;
-      sampleJobs.forEach((job, index) => {
-        // Match job to employer by location (simplified)
-        const employerName = sampleEmployers[index % sampleEmployers.length].name;
-        const employerId = employerMap[employerName];
-        
-        if (employerId) {
-          insertJob.run(
+    try {
+      const results = await Promise.all(
+        sampleEmployers.map(emp => 
+          runPrepared(insertEmployer, [emp.name, emp.description, emp.location, emp.website, emp.hospitalType, emp.size])
+        )
+      );
+      insertEmployer.finalize();
+      return results.filter(changes => changes > 0).length;
+    } catch (err) {
+      insertEmployer.finalize();
+      throw err;
+    }
+  };
+
+  // Insert jobs after employers are in place
+  const insertJobs = async () => {
+    // Get employer IDs
+    const employers = await new Promise((resolve, reject) => {
+      db.all('SELECT id, name FROM employers WHERE isDeleted = 0', [], (err, rows) => {
+        if (err) {reject(err);}
+        else {resolve(rows);}
+      });
+    });
+
+    const employerMap = {};
+    employers.forEach(e => {
+      employerMap[e.name] = e.id;
+    });
+
+    const insertJob = db.prepare(`
+      INSERT OR IGNORE INTO jobs (employerId, title, specialty, location, description, requirements, salaryMin, salaryMax, jobType, experienceRequired)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    try {
+      const results = await Promise.all(
+        sampleJobs.map((job, index) => {
+          const employerName = sampleEmployers[index % sampleEmployers.length].name;
+          const employerId = employerMap[employerName];
+          
+          if (!employerId) {return Promise.resolve(0);}
+          
+          return runPrepared(insertJob, [
             employerId,
             job.title,
             job.specialty,
@@ -1553,65 +2117,96 @@ app.post('/api/seed', (req, res) => {
             job.salaryMin,
             job.salaryMax,
             job.jobType,
-            job.experienceRequired,
-            function(err) {
-              if (!err && this.changes > 0) jobCount++;
-            }
-          );
-        }
-      });
+            job.experienceRequired
+          ]);
+        })
+      );
       insertJob.finalize();
+      return results.filter(changes => changes > 0).length;
+    } catch (err) {
+      insertJob.finalize();
+      throw err;
+    }
+  };
+
+  // Execute seeding sequentially
+  (async () => {
+    try {
+      const employerCount = await insertEmployers();
+      const jobCount = await insertJobs();
 
       res.json({
         message: 'Seed data inserted',
         employersInserted: employerCount,
         jobsInserted: jobCount
       });
-    });
-  }, 100);
+    } catch (err) {
+      console.error('Error seeding data:', err.message);
+      res.status(500).json({ error: 'Database error during seeding' });
+    }
+  })();
+});
+
+// ============ ERROR TRACKING MIDDLEWARE ============
+// Must be added after all routes to catch unhandled errors
+app.use(errorTrackingMiddleware());
+
+// 404 handler for unmatched routes
+app.use((req, res) => {
+  logger.warn('Route not found', {
+    requestId: req.requestId,
+    method: req.method,
+    path: req.path
+  });
+
+  res.status(404).json({
+    error: {
+      type: ERROR_TYPES.NOT_FOUND,
+      message: `Route ${req.method} ${req.path} not found`,
+      requestId: req.requestId,
+      timestamp: new Date().toISOString()
+    }
+  });
 });
 
 // Export for serverless (if needed)
-module.exports = { app, calculateMatchScore };
+module.exports = { app, calculateMatchScore, metrics, logger };
 
 // Start server if run directly
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`MedMatch API running on port ${PORT}`);
-    console.log(`Health check: http://localhost:${PORT}/api/health`);
-    console.log('');
-    console.log('API Endpoints:');
-    console.log('');
-    console.log('Signups:');
-    console.log('  POST /api/auth/register - Register new candidate');
-    console.log('  GET  /api/signups        - List all signups');
-    console.log('  GET  /api/signups/count  - Count signups');
-    console.log('');
-    console.log('Candidates:');
-    console.log('  GET    /api/candidates       - List candidates (with filters, pagination)');
-    console.log('  GET    /api/candidates/:id   - Get single candidate');
-    console.log('  POST   /api/candidates       - Create candidate');
-    console.log('  PATCH  /api/candidates/:id   - Update candidate');
-    console.log('  DELETE /api/candidates/:id   - Soft delete candidate');
-    console.log('');
-    console.log('Employers:');
-    console.log('  GET    /api/employers        - List employers');
-    console.log('  GET    /api/employers/:id    - Get employer with jobs');
-    console.log('  POST   /api/employers        - Create employer');
-    console.log('  PATCH  /api/employers/:id    - Update employer');
-    console.log('');
-    console.log('Jobs:');
-    console.log('  GET    /api/jobs             - List jobs (with filters, pagination)');
-    console.log('  GET    /api/jobs/:id         - Get single job');
-    console.log('  POST   /api/jobs             - Create job');
-    console.log('  PATCH  /api/jobs/:id         - Update job');
-    console.log('  DELETE /api/jobs/:id         - Soft delete job');
-    console.log('');
-    console.log('Matching:');
-    console.log('  GET /api/matches?candidateId=xxx - Get ranked job matches');
-    console.log('');
-    console.log('Seed Data:');
-    console.log('  POST /api/seed - Seed sample employers and jobs');
+    logger.info('MedMatch API server started', {
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      version: API_VERSION
+    });
+
+    // eslint-disable-next-line no-console
+    console.log(`
+╔══════════════════════════════════════════════════════════╗
+║          MedMatch API Server Running                     ║
+╠══════════════════════════════════════════════════════════╣
+║  Port:        ${PORT.toString().padEnd(45)} ║
+║  Health:      http://localhost:${PORT}/api/health${' '.repeat(24 - PORT.toString().length)}║
+║  Dashboard:   http://localhost:${PORT}/dashboard${' '.repeat(25 - PORT.toString().length)}║
+║  Metrics:     http://localhost:${PORT}/metrics${' '.repeat(27 - PORT.toString().length)}║
+╠══════════════════════════════════════════════════════════╣
+║  Monitoring Endpoints:                                   ║
+║    GET /api/health       - Health check (deep)           ║
+║    GET /api/health/live  - Liveness probe                ║
+║    GET /api/health/ready - Readiness probe               ║
+║    GET /metrics          - Prometheus metrics            ║
+║    GET /dashboard        - Observability dashboard       ║
+╠══════════════════════════════════════════════════════════╣
+║  API Endpoints:                                          ║
+║    POST /api/auth/register - Register candidate          ║
+║    GET  /api/signups       - List signups                ║
+║    GET  /api/candidates    - List candidates             ║
+║    GET  /api/employers     - List employers              ║
+║    GET  /api/jobs          - List jobs                   ║
+║    GET  /api/matches       - Job matching                ║
+╚══════════════════════════════════════════════════════════╝
+    `);
   });
 }
