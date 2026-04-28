@@ -208,31 +208,32 @@ npm test
 ```
 
 ### Test Coverage
-The test suite includes **100 comprehensive tests** achieving **81.66% statement coverage**:
+The test suite includes **488 comprehensive tests** achieving high code coverage across all modules:
 
 | Category | Tests | Coverage |
 |----------|-------|----------|
-| **Candidates** | 21 | CRUD, validation, filtering, pagination, soft delete |
-| **Employers** | 11 | CRUD, validation, filtering, jobs relationship |
-| **Jobs** | 18 | CRUD, validation, filtering, soft delete, error cases |
+| **API Endpoints** | 100+ | Candidates, employers, jobs, matches, auth, health |
+| **Middleware** | 165 | Auth, cache, circuit breaker, dbPool, monitoring, performance, rate limiter |
+| **Scripts** | 100+ | Database seed, migrate, reset, health-check, benchmark |
 | **Matching Algorithm** | 11 | Score calculation, specialty/location/experience/salary matching |
-| **Matches API** | 6 | Ranking, filtering, error cases |
-| **Signup / Auth** | 4 | Registration, duplicate handling, count endpoints |
-| **Seed & Health** | 4 | Data seeding, health check, idempotency |
 
 ### Test Output Example
 ```
+Test Suites: 17 passed, 17 total
+Tests:       488 passed, 488 total
+
+ PASS  middleware/cache.test.js
+ PASS  middleware/circuitBreaker.test.js
+ PASS  middleware/dbPool.test.js
+ PASS  middleware/monitoring.test.js
+ PASS  middleware/performance.test.js
+ PASS  middleware/rateLimiter.test.js
+ PASS  scripts/health-check.test.js
+ PASS  scripts/benchmark.test.js
+ PASS  scripts/seed.test.js
+ PASS  scripts/migrate.test.js
+ PASS  scripts/reset.test.js
  PASS  server.test.js
-  Candidate API
-    POST /api/candidates
-      ✓ should create a new candidate with valid data
-      ✓ should reject duplicate email
-      ✓ should reject missing required fields
-    ...
-  
-Test Suites: 1 passed, 1 total
-Tests:       100 passed, 100 total
-Coverage:    81.66% Stmts | 85.97% Branch | 98.57% Funcs | 81.98% Lines
 ```
 
 ### Watch Mode (Development)
