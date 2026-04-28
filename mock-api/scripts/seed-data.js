@@ -91,22 +91,6 @@ const HOSPITAL_SIZES = ['Small (<200 beds)', 'Medium (200-500 beds)', 'Large (50
 const HOSPITAL_NAME_PREFIXES = ['Universitätsklinikum', 'Klinikum', 'Städtisches Klinikum', 'Krankenhaus', 'Kliniken'];
 const HOSPITAL_NAME_SUFFIXES = ['Städtisch', 'Universitär', 'Evangelisch', 'Katholisch', 'Landes'];
 
-// Sample job titles by level
-const JOB_TITLES = {
-  assistant: [
-    'Assistenzarzt', 'Assistenzärztin', 'Arzt in Weiterbildung',
-    'Junior Physician', 'Resident Doctor'
-  ],
-  specialist: [
-    'Facharzt', 'Fachärztin', 'Oberarzt', 'Oberärztin',
-    'Senior Physician', 'Specialist Physician'
-  ],
-  senior: [
-    'Leitender Oberarzt', 'Chefarzt', 'Chefärztin',
-    'Senior Consultant', 'Head of Department'
-  ]
-};
-
 // Sample job descriptions
 const JOB_DESCRIPTION_TEMPLATES = [
   'Wir suchen engagierte Mediziner für unser modern ausgestattetes {department}.',

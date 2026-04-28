@@ -69,10 +69,8 @@ function compression(options = {}) {
     // Store original methods
     const originalWrite = res.write.bind(res);
     const originalEnd = res.end.bind(res);
-    const originalJson = res.json.bind(res);
 
     let buffer = Buffer.alloc(0);
-    const shouldCompress = false;
 
     // Override write
     res.write = function(chunk, encoding) {
@@ -160,7 +158,6 @@ function compressionSync(options = {}) {
     const compressFn = encoding === 'gzip' ? zlib.gzipSync : zlib.deflateSync;
 
     const originalEnd = res.end.bind(res);
-    const originalJson = res.json.bind(res);
 
     res.json = function(body) {
       const json = JSON.stringify(body);

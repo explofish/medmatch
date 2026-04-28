@@ -23,7 +23,7 @@ class CacheManager {
       deletes: 0
     };
 
-    this.cache.on('expired', (key, value) => {
+    this.cache.on('expired', (_key, _value) => {
       // Optional: Log or handle expiration
     });
   }
