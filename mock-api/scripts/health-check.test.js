@@ -12,14 +12,12 @@ jest.mock('http', () => ({
 }));
 
 describe('Health Check Script', () => {
-  let http;
   let consoleSpy;
   let processExitSpy;
 
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
-    http = require('http');
     consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     processExitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
   });
