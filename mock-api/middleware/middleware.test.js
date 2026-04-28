@@ -373,7 +373,7 @@ describe('Caching', () => {
         res.json({ time: Date.now() });
       });
 
-      const res1 = await request(app).get('/short-ttl');
+      await request(app).get('/short-ttl');
       
       await new Promise(r => setTimeout(r, 60)); // Wait for expiry
       
@@ -464,7 +464,7 @@ describe('Circuit Breaker', () => {
       
       try {
         await breaker.execute(fn);
-      } catch (e) {}
+      } catch (e) { /* expected failure */ }
 
       expect(breaker.getState().failures).toBe(1);
     });
@@ -475,7 +475,7 @@ describe('Circuit Breaker', () => {
       for (let i = 0; i < 3; i++) {
         try {
           await breaker.execute(fn);
-        } catch (e) {}
+        } catch (e) { /* expected failure */ }
       }
 
       expect(breaker.getState().state).toBe('OPEN');
@@ -498,7 +498,7 @@ describe('Circuit Breaker', () => {
       // This call should trigger half-open
       try {
         await breaker.execute(() => Promise.reject(new Error('fail')));
-      } catch (e) {}
+      } catch (e) { /* expected failure */ }
 
       expect(breaker.getState().state).toBe('HALF_OPEN');
     });
@@ -520,7 +520,7 @@ describe('Circuit Breaker', () => {
       
       try {
         await breaker.execute(failFn);
-      } catch (e) {}
+      } catch (e) { /* expected failure */ }
 
       const metrics = breaker.getMetrics();
       expect(metrics.totalCalls).toBe(2);
@@ -822,7 +822,7 @@ describe('Circuit Breaker - Additional Coverage', () => {
     
     try {
       await breaker.execute(() => Promise.reject(new Error('fail')));
-    } catch (e) {}
+    } catch (e) { /* expected failure */ }
 
     const metrics = breaker.getMetrics();
     expect(metrics.stateTransitions.length).toBeGreaterThan(0);
@@ -858,7 +858,7 @@ describe('Circuit Breaker - Additional Coverage', () => {
     // This should trigger toHalfOpen
     try {
       await breaker.execute(() => Promise.reject(new Error('fail')));
-    } catch (e) {}
+    } catch (e) { /* expected failure */ }
 
     expect(breaker.getState().halfOpenCalls).toBeLessThanOrEqual(3);
   });
